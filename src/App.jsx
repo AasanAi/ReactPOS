@@ -62,7 +62,8 @@ function MainApp() {
   // --- NEW: Firestore ke liye badle hue functions ---
 
   const handleAddProduct = useCallback(async (productToAdd) => {
-    if (!currentUser) return;
+    alert("NAYA CODE CHAL RAHA HAI! Version 2"); // <-- YEH LINE ADD KAREIN
+	if (!currentUser) return;
     try {
       const docRef = await addDoc(collection(db, `users/${currentUser.uid}/products`), productToAdd);
       setProducts(prev => [...prev, { id: docRef.id, ...productToAdd }]); // UI foran update karein
