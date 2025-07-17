@@ -1,9 +1,10 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth"; // <-- Login ke liye
-import { getFirestore } from "firebase/firestore"; // <-- Database ke liye
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
-// Aapki NAYI web app ki Firebase configuration yahan daalein
+// Aapki web app ki Firebase configuration
+// Maine aapki NAYI keys istemal ki hain.
 const firebaseConfig = {
   apiKey: "// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
@@ -25,13 +26,13 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);", // <-- NAYI KEY
-  authDomain: "aasan-pos.firebaseapp.com",
-  projectId: "aasan-pos",
-  storageBucket: "aasan-pos.appspot.com", // Aksar yeh .appspot.com hota hai, check kar lein
-  messagingSenderId: "872296255660",
-  appId: "NAYA_APP_ID_YAHAN_DAALEIN", // <-- NAYA ID
-  measurementId: "G-9W8CSEKJC8"
+const analytics = getAnalytics(app);",             // <-- Aakhir mein comma
+  authDomain: "aasan-pos.firebaseapp.com",     // <-- Aakhir mein comma
+  projectId: "aasan-pos",                      // <-- Aakhir mein comma
+  storageBucket: "aasan-pos.appspot.com",      // <-- Aakhir mein comma
+  messagingSenderId: "872296255660",           // <-- Aakhir mein comma
+  appId: "NAYA_APP_ID_YAHAN_DAALEIN",              // <-- Aakhir mein comma
+  measurementId: "G-9W8CSEKJC8"                // <-- Aakhri line par comma nahi
 };
 
 // Initialize Firebase
