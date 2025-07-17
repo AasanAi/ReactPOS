@@ -3,7 +3,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
 
 // NEW: Firestore se functions aur db config ko import karein
-import { db } from './firebase.js'; 
+import { db } from './firebase.js';
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
 
 // Components
