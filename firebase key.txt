@@ -12,8 +12,8 @@ const firebaseConfig = {
   projectId: "aasan-pos",
   storageBucket: "aasan-pos.firebasestorage.app",
   messagingSenderId: "872296255660",
-  appId: "1:872296255660:web:c390e23ecd621cb5dacf09",
-  measurementId: "G-9W8CSEKJC8"
+  appId: "1:872296255660:web:e734f07a02057f3adacf09",
+  measurementId: "G-B9QG72HW2X"
 };
 
 // Initialize Firebase

@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import Modal from 'react-modal';
 
-function POS({ products, setProducts, setSalesHistory, cart, setCart }) {
+// --- CHANGED ---
+// setProducts aur setSalesHistory props hata diye gaye hain.
+// onProcessSale naya prop hai jo App.jsx se aa raha hai.
+function POS({ products, onProcessSale, cart, setCart }) {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [tenderedAmount, setTenderedAmount] = useState(0);
   const [changeAmount, setChangeAmount] = useState(0);
@@ -11,61 +14,98 @@ function POS({ products, setProducts, setSalesHistory, cart, setCart }) {
 
   const increaseQuantity = (barcode) => {
     const productInStock = products.find(p => p.barcode === barcode);
-    if (!productInStock || productInStock.quantity < 1) { toast.error("No more stock available!"); return; }
+    const itemInCart = cart.find(item => item.barcode === barcode);
+
+    // Stock check: Original stock se zyada add na hone dein.
+    if (!productInStock || productInStock.quantity <= itemInCart.quantity) {
+      toast.error("Itna stock nahi hai!");
+      return;
+    }
     setCart(cart.map(item => item.barcode === barcode ? { ...item, quantity: item.quantity + 1 } : item));
-    setProducts(products.map(p => p.barcode === barcode ? { ...p, quantity: p.quantity - 1 } : p));
+    // NOTE: setProducts(...) wali line hata di gayi hai.
   };
+
   const decreaseQuantity = (barcode) => {
     const itemInCart = cart.find(i => i.barcode === barcode);
-    if (itemInCart.quantity === 1) { removeFromCart(barcode); }
-    else {
+    if (itemInCart.quantity === 1) {
+      removeFromCart(barcode);
+    } else {
       setCart(cart.map(item => item.barcode === barcode ? { ...item, quantity: item.quantity - 1 } : item));
-      setProducts(products.map(p => p.barcode === barcode ? { ...p, quantity: p.quantity + 1 } : p));
+      // NOTE: setProducts(...) wali line hata di gayi hai.
     }
   };
+
   const addToCart = (barcode) => {
     const product = products.find((p) => p.barcode === barcode);
-    if (!product) { toast.error("Product not found!"); return; }
-    if (product.quantity <= 0) { toast.error("Out of stock!"); return; }
-    const existingItemIndex = cart.findIndex((item) => item.barcode === barcode);
-    if (existingItemIndex >= 0) { increaseQuantity(barcode); }
-    else {
-      setCart([...cart, { name: product.name, price: product.salePrice, buyPrice: product.buyPrice, quantity: 1, barcode: product.barcode }]);
-      setProducts(products.map((p) => (p.barcode === barcode ? { ...p, quantity: p.quantity - 1 } : p)));
+    if (!product) { toast.error("Product nahi mila!"); return; }
+
+    const itemInCart = cart.find(item => item.barcode === barcode);
+    const currentQuantityInCart = itemInCart ? itemInCart.quantity : 0;
+
+    if (product.quantity <= currentQuantityInCart) {
+      toast.error("Stock khatam ho gaya hai!");
+      return;
     }
+
+    const existingItemIndex = cart.findIndex((item) => item.barcode === barcode);
+    if (existingItemIndex >= 0) {
+      increaseQuantity(barcode);
+    } else {
+      setCart([...cart, { name: product.name, price: product.salePrice, buyPrice: product.buyPrice, quantity: 1, barcode: product.barcode }]);
+    }
+    // NOTE: setProducts(...) wali line hata di gayi hai.
   };
+
   const removeFromCart = (barcode) => {
-    const item = cart.find((i) => i.barcode === barcode);
-    if (!item) return;
     setCart(cart.filter((i) => i.barcode !== barcode));
-    setProducts(products.map((p) => (p.barcode === barcode ? { ...p, quantity: p.quantity + item.quantity } : p)));
+    // NOTE: setProducts(...) wali line hata di gayi hai.
   };
+
   const calculateTotal = () => cart.reduce((total, item) => total + item.price * item.quantity, 0);
 
   const openPaymentModal = () => {
-    if (cart.length === 0) { toast.error("Cart is empty!"); return; }
+    if (cart.length === 0) { toast.error("Cart khaali hai!"); return; }
     const total = calculateTotal();
     setTenderedAmount(total);
     setChangeAmount(0);
     setIsPaymentModalOpen(true);
   };
   const closePaymentModal = () => setIsPaymentModalOpen(false);
+
   const handleTenderChange = (e) => {
     const tender = parseFloat(e.target.value) || 0;
     const total = calculateTotal();
     setTenderedAmount(tender);
     setChangeAmount(tender - total);
   };
+
+  // --- CHANGED ---
+  // Yeh function ab sale ka data App.jsx ko bhej dega.
   const handleSale = () => {
     const totalAmount = calculateTotal();
-    if (tenderedAmount < totalAmount) { toast.error("Tendered amount is less than total!"); return; }
+    if (tenderedAmount < totalAmount) { toast.error("Tendered amount total se kam hai!"); return; }
+
     const totalProfit = cart.reduce((profit, item) => profit + (item.price - item.buyPrice) * item.quantity, 0);
-    const newSale = { id: Date.now(), items: cart, totalAmount, totalProfit, date: new Date().toISOString(), tendered: tenderedAmount, change: changeAmount };
-    setSalesHistory(prevSales => [...prevSales, newSale]);
-    toast.success(`Sale completed! Change: PKR ${changeAmount.toFixed(2)}`);
+    
+    // Naya sale object, ismein ab id nahi hogi kyunki Firestore khud banayega.
+    const newSale = { 
+      items: cart, 
+      totalAmount, 
+      totalProfit, 
+      date: new Date().toISOString(), 
+      tendered: tenderedAmount, 
+      change: changeAmount 
+    };
+
+    // App.jsx se mile naye function ko call karein.
+    onProcessSale(newSale);
+    
+    // Baaki sab kuch waisa hi rahega.
+    toast.success(`Sale ho gayi! Change: PKR ${changeAmount.toFixed(2)}`);
     setCart([]);
     closePaymentModal();
-    setReceiptData(newSale);
+    // Receipt ke liye ID ab Firestore se aayegi, lekin UI ke liye hum temporary ID use kar sakte hain
+    setReceiptData({ ...newSale, id: Date.now() }); // Temporary ID for receipt
     setIsReceiptModalOpen(true);
   };
   
@@ -81,7 +121,7 @@ function POS({ products, setProducts, setSalesHistory, cart, setCart }) {
   return (
     <div className="container mx-auto px-6 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h3 className="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">Search Products</h3><input type="text" placeholder="Enter product barcode..." onKeyDown={e => { if (e.key === "Enter") { addToCart(e.target.value); e.target.value = ""; } }} className="w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" /><div className="mt-4 space-y-2 max-h-[60vh] overflow-y-auto">{products.map((product) => (<div key={product.barcode} className="flex justify-between items-center p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-teal-50 dark:hover:bg-gray-700" onClick={() => addToCart(product.barcode)}><span className="dark:text-gray-200">{product.name}</span><span className="font-semibold text-gray-800 dark:text-gray-100">PKR {product.salePrice.toFixed(2)}</span></div>))}</div></div>
+        <div className="lg:col-span-1 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h3 className="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">Search Products</h3><input type="text" placeholder="Enter product barcode..." onKeyDown={e => { if (e.key === "Enter") { addToCart(e.target.value); e.target.value = ""; } }} className="w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" /><div className="mt-4 space-y-2 max-h-[60vh] overflow-y-auto">{products.map((product) => (<div key={product.id} className="flex justify-between items-center p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-teal-50 dark:hover:bg-gray-700" onClick={() => addToCart(product.barcode)}><span className="dark:text-gray-200">{product.name}</span><span className="font-semibold text-gray-800 dark:text-gray-100">PKR {product.salePrice.toFixed(2)}</span></div>))}</div></div>
         <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h3 className="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">Shopping Cart</h3>{cart.length > 0 ? (<><div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">{cart.map((item) => (<div key={item.barcode} className="flex justify-between items-center border-b pb-3 border-gray-200 dark:border-gray-700"><div><p className="font-semibold text-gray-800 dark:text-gray-100">{item.name}</p><div className="flex items-center gap-3 mt-1"><button onClick={() => decreaseQuantity(item.barcode)} className="bg-gray-200 dark:bg-gray-600 dark:text-gray-100 h-6 w-6 rounded-full font-bold flex items-center justify-center">-</button><span className="dark:text-gray-200">{item.quantity}</span><button onClick={() => increaseQuantity(item.barcode)} className="bg-gray-200 dark:bg-gray-600 dark:text-gray-100 h-6 w-6 rounded-full font-bold flex items-center justify-center">+</button></div></div><div className="flex items-center gap-4"><p className="font-bold text-lg text-gray-800 dark:text-gray-100">PKR {(item.price * item.quantity).toFixed(2)}</p><button onClick={() => removeFromCart(item.barcode)} className="text-red-400 hover:text-red-600 transition-colors">✕</button></div></div>))}</div><div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center"><h4 className="text-xl font-bold dark:text-gray-100">Total:</h4><p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">PKR {calculateTotal().toFixed(2)}</p></div><div className="flex space-x-2 mt-6"><button onClick={openPaymentModal} className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 rounded-lg font-bold text-lg hover:from-emerald-600 hover:to-teal-700 transition-all duration-300 shadow-md hover:shadow-lg">Proceed to Payment</button></div></>) : (<div className="text-center py-16"><p className="text-gray-500 dark:text-gray-400 text-lg">Your cart is empty.</p><p className="text-gray-400 dark:text-gray-500">Scan a product to begin.</p></div>)}</div>
       </div>
       <Modal isOpen={isPaymentModalOpen} onRequestClose={closePaymentModal} contentLabel="Payment Modal" className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md mx-auto mt-24" overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center"><h2 className="text-2xl font-bold mb-4 dark:text-gray-100">Payment</h2><div className="flex justify-between text-lg mb-2 dark:text-gray-200"><span>Total Amount:</span><span className="font-bold">PKR {calculateTotal().toFixed(2)}</span></div><div className="mb-4"><label htmlFor="tendered" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Amount Tendered</label><input type="number" id="tendered" value={tenderedAmount} onChange={handleTenderChange} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-xl focus:outline-none focus:ring-2 focus:ring-teal-500" autoFocus /></div><div className="flex justify-between text-xl font-bold text-blue-600 dark:text-blue-400 mb-6"><span>Change Due:</span><span>PKR {changeAmount.toFixed(2)}</span></div><div className="flex justify-end space-x-2"><button onClick={closePaymentModal} className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">Cancel</button><button onClick={handleSale} className="bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600">Confirm Sale</button></div></Modal>
