@@ -30,23 +30,28 @@ function MainApp() {
   const [dataLoading, setDataLoading] = useState(true);
 
   // NEW: Firestore se data fetch karne ke liye useEffect. Yeh user login hone par chalega.
-  useEffect(() => {
+ useEffect(() => {
   if (!currentUser) return;
 
   const fetchData = async () => {
     setDataLoading(true);
-    console.log("A. DATA FETCH KARNE KI KOSHISH... User ID:", currentUser.uid); // <-- YEH LINE ADD KAREIN
+    console.log("A. DATA FETCH KARNE KI KOSHISH... User ID:", currentUser.uid);
+
     try {
       const productsPath = `users/${currentUser.uid}/products`;
       const productsSnapshot = await getDocs(collection(db, productsPath));
       const productsList = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      console.log("B. FIRESTORE SE PRODUCTS AAGAYE:", productsList); // <-- YEH LINE ADD KAREIN
+      console.log("B. FIRESTORE SE PRODUCTS AAGAYE:", productsList);
       setProducts(productsList);
 
-      // ... sales ka code waisa hi rahega ...
+      // Sales wala code yahan waisa hi rahega
+      const salesPath = `users/${currentUser.uid}/sales`;
+      const salesSnapshot = await getDocs(collection(db, salesPath));
+      const salesList = salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setSales(salesList);
 
     } catch (error) {
-      console.error("C. DATA FETCH KARNE MEIN ERROR:", error); // <-- YEH LINE ADD KAREIN
+      console.error("C. DATA FETCH KARNE MEIN ERROR:", error);
       toast.error("Aapka data load nahi ho saka.");
     } finally {
       setDataLoading(false);
@@ -54,7 +59,7 @@ function MainApp() {
   };
 
   fetchData();
-}, [currentUser]); [currentUser]); // Yeh effect sirf tab chalega jab user badlega (login/logout).
+}, [currentUser]); // ✅ صرف ایک بار dependency array
 
   // --- NEW: Firestore ke liye badle hue functions ---
 
