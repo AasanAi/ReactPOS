@@ -6,7 +6,6 @@ import { getFirestore } from "firebase/firestore";  // <-- Database ke liye zaro
 // Aapki web app ki Firebase configuration
 // YAHAN APNI SABSE NAYI, UN-SHARED KEYS DAALEIN
 const firebaseConfig = {
-  apiKey: const firebaseConfig = {
   apiKey: "AIzaSyB2PyIPcxBLd0TvFN1hAkIHqSN1SrvUBc0",
   authDomain: "aasan-pos.firebaseapp.com",
   projectId: "aasan-pos",
@@ -14,7 +13,7 @@ const firebaseConfig = {
   messagingSenderId: "872296255660",
   appId: "1:872296255660:web:e734f07a02057f3adacf09",
   measurementId: "G-B9QG72HW2X"
-};,
+};
  
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
