@@ -65,22 +65,23 @@ function MainApp() {
 
   const handleAddProduct = useCallback(async (productToAdd) => {
   if (!currentUser) return;
-  
-  console.log("1. PRODUCT ADD KARNE KI KOSHISH..."); // <-- YEH LINE ADD KAREIN
-  console.log("Data to be added:", productToAdd);      // <-- YEH LINE ADD KAREIN
-  console.log("User ID:", currentUser.uid);           // <-- YEH LINE ADD KAREIN
+  console.log("1. PRODUCT ADD KARNE KI KOSHISH...");
+  console.log("Data to be added:", productToAdd);
+  console.log("User ID:", currentUser.uid);
 
   try {
-    const docRef = await addDoc(collection(db, `users/${currentUser.uid}/products`), productToAdd);
-    console.log("2. KAAMYAABI! Product Firestore mein add ho gaya. Document ID:", docRef.id); // <-- YEH LINE ADD KAREIN
+    const docRef = await addDoc(
+      collection(db, `users/${currentUser.uid}/products`),
+      productToAdd
+    );
+    console.log("2. KAAMYAABI! Product Firestore mein add ho gaya. Document ID:", docRef.id);
     setProducts(prev => [...prev, { id: docRef.id, ...productToAdd }]);
     toast.success("Product add ho gaya!");
   } catch (error) {
-    console.error("3. ERROR! Product add nahi ho saka:", error); // <-- YEH LINE ADD KAREIN
+    console.error("3. ERROR! Product add nahi ho saka:", error);
     toast.error("Product add nahi ho saka.");
   }
-}, [currentUser]);
-  }, [currentUser]);
+}, [currentUser]); // ✅ صرف ایک بار
 
   const handleUpdateProduct = useCallback(async (updatedProduct) => {
     if (!currentUser) return;
