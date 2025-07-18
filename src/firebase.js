@@ -1,18 +1,23 @@
-// src/firebase.js
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
+// Aapki web app ki Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyB2PyIPcxBLd0TvFN1hAkIHqSN1SrvUBc0",
-  authDomain: "aasan-pos.firebaseapp.com",
-  projectId: "aasan-pos",
-  storageBucket: "aasan-pos.firebasestorage.app",
-  messagingSenderId: "872296255660",
-  appId: "1:872296255660:web:e734f07a02057f3adacf09",
-  measurementId: "G-B9QG72HW2X",
+  // Yahan apni NAYI keys quotes ke andar daalein
+  apiKey: "NAYI_API_KEY_YAHAN_DAALEIN",             
+  authDomain: "aasan-pos.firebaseapp.com",     
+  projectId: "aasan-pos",                      
+  storageBucket: "aasan-pos.appspot.com",      
+  messagingSenderId: "872296255660",           
+  appId: "NAYA_APP_ID_YAHAN_DAALEIN",              
+  measurementId: "G-9W8CSEKJC8"                
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+// Authentication aur Database ko export karein
 export const auth = getAuth(app);
 export const db = getFirestore(app);
