@@ -15,14 +15,7 @@ const firebaseConfig = {
   appId: "1:872296255660:web:e734f07a02057f3adacf09",
   measurementId: "G-B9QG72HW2X"
 };,
-  authDomain: "aasan-pos.firebaseapp.com",
-  projectId: "aasan-pos",
-  storageBucket: "aasan-pos.appspot.com", // Aksar .appspot.com hota hai
-  messagingSenderId: "872296255660",
-  appId: "YAHAN_APNA_NAYA_APP_ID_DAALEIN",
-  measurementId: "G-B9QG72HW2X" // Yeh optional hai
-};
-
+ 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
