@@ -1,12 +1,12 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getAuth } from "firebase/auth";        // <-- Login ke liye zaroori
+import { getFirestore } from "firebase/firestore";  // <-- Database ke liye zaroori
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// Aapki web app ki Firebase configuration
+// YAHAN APNI SABSE NAYI, UN-SHARED KEYS DAALEIN
 const firebaseConfig = {
+  apiKey: const firebaseConfig = {
   apiKey: "AIzaSyB2PyIPcxBLd0TvFN1hAkIHqSN1SrvUBc0",
   authDomain: "aasan-pos.firebaseapp.com",
   projectId: "aasan-pos",
@@ -14,8 +14,19 @@ const firebaseConfig = {
   messagingSenderId: "872296255660",
   appId: "1:872296255660:web:e734f07a02057f3adacf09",
   measurementId: "G-B9QG72HW2X"
+};,
+  authDomain: "aasan-pos.firebaseapp.com",
+  projectId: "aasan-pos",
+  storageBucket: "aasan-pos.appspot.com", // Aksar .appspot.com hota hai
+  messagingSenderId: "872296255660",
+  appId: "YAHAN_APNA_NAYA_APP_ID_DAALEIN",
+  measurementId: "G-B9QG72HW2X" // Yeh optional hai
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+
+// --- YEH SABSE ZAROORI HISSA HAI ---
+// Authentication aur Database ko export karein taaki poore app mein use ho sake
+export const auth = getAuth(app);
+export const db = getFirestore(app);
