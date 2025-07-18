@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
-
+import Footer from './components/Footer';
 // Firestore
 import { db } from './firebase.js';
 import {
