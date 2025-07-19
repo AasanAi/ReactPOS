@@ -38,42 +38,37 @@ const [customers, setCustomers] = useState([]);
   /* ----------------------------------------------------------
      Firestore se data laane ka useEffect
   ---------------------------------------------------------- */
-  useEffect(() => {
+    useEffect(() => {
     if (!currentUser) return;
 
     const fetchData = async () => {
       setDataLoading(true);
-      console.log("A. DATA FETCH KARNE KI KOSHISH... User ID:", currentUser.uid);
-
       try {
-        // Products
+        // Step 1: Fetch Products
         const productsSnapshot = await getDocs(
           collection(db, `users/${currentUser.uid}/products`)
         );
-		// fetchData function ke andar...
-try {
-  // ... products aur sales ka code ...
-
-  // Step 3: Customers fetch karein
-  const customersPath = `users/${currentUser.uid}/customers`;
-  const customersSnapshot = await getDocs(collection(db, customersPath));
-  const customersList = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  setCustomers(customersList);
-
-} catch (error) { //...
-        const productsList = productsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        const productsList = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setProducts(productsList);
-        console.log("B. FIRESTORE SE PRODUCTS AAGAYE:", productsList);
 
-        // Sales
+        // Step 2: Fetch Sales
         const salesSnapshot = await getDocs(
           collection(db, `users/${currentUser.uid}/sales`)
         );
-        const salesList = salesSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        const salesList = salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setSalesHistory(salesList);
+
+        // Step 3: Fetch Customers
+        const customersSnapshot = await getDocs(
+          collection(db, `users/${currentUser.uid}/customers`)
+        );
+        const customersList = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setCustomers(customersList);
+
       } catch (error) {
-        console.error("C. DATA FETCH KARNE MEIN ERROR:", error);
-        toast.error("Aapka data load nahi ho saka.");
+        console.error("Error fetching initial data:", error);
+        // CHANGED: Urdu notification to English
+        toast.error("Failed to load your data. Please try again.");
       } finally {
         setDataLoading(false);
       }
@@ -85,7 +80,7 @@ try {
   /* ----------------------------------------------------------
      Products CRUD – Firestore
   ---------------------------------------------------------- */
-    const handleAddProduct = useCallback(async (productToAdd) => {
+  const handleAddProduct = useCallback(async (productToAdd) => {
     if (!currentUser) return;
     try {
       const docRef = await addDoc(
