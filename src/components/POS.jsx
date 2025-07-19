@@ -16,13 +16,16 @@ function POS({ products, onProcessSale, cart, setCart }) {
     const productInStock = products.find(p => p.barcode === barcode);
     const itemInCart = cart.find(item => item.barcode === barcode);
 
-    // Stock check: Original stock se zyada add na hone dein.
+      const increaseQuantity = (barcode) => {
+    const productInStock = products.find(p => p.barcode === barcode);
+    const itemInCart = cart.find(item => item.barcode === barcode);
+
     if (!productInStock || productInStock.quantity <= itemInCart.quantity) {
-      toast.error("Itna stock nahi hai!");
+      // CHANGED: Urdu/mixed message to English
+      toast.error("Not enough stock available!");
       return;
     }
     setCart(cart.map(item => item.barcode === barcode ? { ...item, quantity: item.quantity + 1 } : item));
-    // NOTE: setProducts(...) wali line hata di gayi hai.
   };
 
   const decreaseQuantity = (barcode) => {
@@ -31,19 +34,23 @@ function POS({ products, onProcessSale, cart, setCart }) {
       removeFromCart(barcode);
     } else {
       setCart(cart.map(item => item.barcode === barcode ? { ...item, quantity: item.quantity - 1 } : item));
-      // NOTE: setProducts(...) wali line hata di gayi hai.
     }
   };
 
   const addToCart = (barcode) => {
     const product = products.find((p) => p.barcode === barcode);
-    if (!product) { toast.error("Product nahi mila!"); return; }
+    if (!product) {
+      // CHANGED: Urdu/mixed message to English
+      toast.error("Product not found!");
+      return;
+    }
 
     const itemInCart = cart.find(item => item.barcode === barcode);
     const currentQuantityInCart = itemInCart ? itemInCart.quantity : 0;
 
     if (product.quantity <= currentQuantityInCart) {
-      toast.error("Stock khatam ho gaya hai!");
+      // CHANGED: Urdu/mixed message to English
+      toast.error("Out of stock!");
       return;
     }
 
@@ -53,23 +60,26 @@ function POS({ products, onProcessSale, cart, setCart }) {
     } else {
       setCart([...cart, { name: product.name, price: product.salePrice, buyPrice: product.buyPrice, quantity: 1, barcode: product.barcode }]);
     }
-    // NOTE: setProducts(...) wali line hata di gayi hai.
   };
 
   const removeFromCart = (barcode) => {
     setCart(cart.filter((i) => i.barcode !== barcode));
-    // NOTE: setProducts(...) wali line hata di gayi hai.
   };
 
   const calculateTotal = () => cart.reduce((total, item) => total + item.price * item.quantity, 0);
 
   const openPaymentModal = () => {
-    if (cart.length === 0) { toast.error("Cart khaali hai!"); return; }
+    if (cart.length === 0) {
+      // CHANGED: Urdu/mixed message to English
+      toast.error("Cart is empty!");
+      return;
+    }
     const total = calculateTotal();
     setTenderedAmount(total);
     setChangeAmount(0);
     setIsPaymentModalOpen(true);
   };
+  
   const closePaymentModal = () => setIsPaymentModalOpen(false);
 
   const handleTenderChange = (e) => {
@@ -79,15 +89,17 @@ function POS({ products, onProcessSale, cart, setCart }) {
     setChangeAmount(tender - total);
   };
 
-  // --- CHANGED ---
-  // Yeh function ab sale ka data App.jsx ko bhej dega.
+  // --- FINAL UPDATED VERSION ---
   const handleSale = () => {
     const totalAmount = calculateTotal();
-    if (tenderedAmount < totalAmount) { toast.error("Tendered amount total se kam hai!"); return; }
+    if (tenderedAmount < totalAmount) {
+      // CHANGED: Urdu/mixed message to English
+      toast.error("Tendered amount is less than the total!");
+      return;
+    }
 
     const totalProfit = cart.reduce((profit, item) => profit + (item.price - item.buyPrice) * item.quantity, 0);
     
-    // Naya sale object, ismein ab id nahi hogi kyunki Firestore khud banayega.
     const newSale = { 
       items: cart, 
       totalAmount, 
@@ -97,15 +109,16 @@ function POS({ products, onProcessSale, cart, setCart }) {
       change: changeAmount 
     };
 
-    // App.jsx se mile naye function ko call karein.
+    // Call the parent function to handle Firestore logic
     onProcessSale(newSale);
     
-    // Baaki sab kuch waisa hi rahega.
-    toast.success(`Sale ho gayi! Change: PKR ${changeAmount.toFixed(2)}`);
+    // REMOVED: Duplicate success toast from here.
+    // The success toast will now only come from App.jsx after a successful database write.
+
+    // Reset the UI
     setCart([]);
     closePaymentModal();
-    // Receipt ke liye ID ab Firestore se aayegi, lekin UI ke liye hum temporary ID use kar sakte hain
-    setReceiptData({ ...newSale, id: Date.now() }); // Temporary ID for receipt
+    setReceiptData({ ...newSale, id: Date.now() }); // Use a temporary ID for immediate receipt display
     setIsReceiptModalOpen(true);
   };
   
