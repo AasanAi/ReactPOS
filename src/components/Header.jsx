@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import ThemeToggle from './ThemeToggle'; // Naya component import karein
 
 function Header({ activeTab, setActiveTab }) {
-  const tabs = ['dashboard', 'pos', 'inventory', 'sales report', 'settings'];
+  const tabs = ['dashboard', 'pos', 'inventory', 'customers', 'sales report', 'settings'];
   const { logout } = useAuth();
 
   const handleLogout = async () => {

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
+import Customers from './components/Customers';
 import Footer from './components/Footer';
+
 // Firestore
 import { db } from './firebase.js';
 import {
@@ -27,7 +29,7 @@ import LoadingSpinner  from "./components/LoadingSpinner";
 function MainApp() {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
-
+const [customers, setCustomers] = useState([]);
   const [products,      setProducts]      = useState([]);
   const [salesHistory,  setSalesHistory]  = useState([]);
   const [cart,          setCart]          = useState([]);
@@ -48,6 +50,17 @@ function MainApp() {
         const productsSnapshot = await getDocs(
           collection(db, `users/${currentUser.uid}/products`)
         );
+		// fetchData function ke andar...
+try {
+  // ... products aur sales ka code ...
+
+  // Step 3: Customers fetch karein
+  const customersPath = `users/${currentUser.uid}/customers`;
+  const customersSnapshot = await getDocs(collection(db, customersPath));
+  const customersList = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  setCustomers(customersList);
+
+} catch (error) { //...
         const productsList = productsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         setProducts(productsList);
         console.log("B. FIRESTORE SE PRODUCTS AAGAYE:", productsList);
@@ -87,6 +100,47 @@ function MainApp() {
     }
   }, [currentUser]);
 
+  // --- NEW: Customer Management Functions ---
+
+const handleAddCustomer = useCallback(async (customerToAdd) => {
+  if (!currentUser) return;
+  try {
+    const docRef = await addDoc(collection(db, `users/${currentUser.uid}/customers`), customerToAdd);
+    setCustomers(prev => [...prev, { id: docRef.id, ...customerToAdd }]);
+    toast.success("Customer added successfully!");
+  } catch (error) {
+    console.error("Error adding customer:", error);
+    toast.error("Failed to add customer.");
+  }
+}, [currentUser]);
+
+const handleUpdateCustomer = useCallback(async (updatedCustomer) => {
+  if (!currentUser) return;
+  const { id, ...customerData } = updatedCustomer;
+  if (!id) return toast.error("Customer ID is missing.");
+  
+  try {
+    const customerDocRef = doc(db, `users/${currentUser.uid}/customers`, id);
+    await updateDoc(customerDocRef, customerData);
+    setCustomers(prev => prev.map(c => c.id === id ? updatedCustomer : c));
+    toast.success("Customer updated successfully!");
+  } catch (error) {
+    console.error("Error updating customer:", error);
+    toast.error("Failed to update customer.");
+  }
+}, [currentUser]);
+
+const handleDeleteCustomer = useCallback(async (customerIdToDelete) => {
+  if (!currentUser) return;
+  try {
+    await deleteDoc(doc(db, `users/${currentUser.uid}/customers`, customerIdToDelete));
+    setCustomers(prev => prev.filter(c => c.id !== customerIdToDelete));
+    toast.success("Customer deleted successfully!");
+  } catch (error) {
+    console.error("Error deleting customer:", error);
+    toast.error("Failed to delete customer.");
+  }
+}, [currentUser]);
   const handleUpdateProduct = useCallback(async (updatedProduct) => {
     if (!currentUser) return;
     const { id, ...productData } = updatedProduct;
@@ -221,6 +275,19 @@ function MainApp() {
         )}
         {activeTab === 'sales report' && <SalesReport salesHistory={salesHistory} />}
         {activeTab === 'settings'     && <Settings onClearData={handleClearAllData} />}
+		{activeTab === 'inventory' && <Inventory ... />}
+
+{/* YEH NAYA CODE ADD KAREIN */}
+{activeTab === 'customers' && 
+  <Customers 
+    customers={customers}
+    onAddCustomer={handleAddCustomer}
+    onUpdateCustomer={handleUpdateCustomer}
+    onDeleteCustomer={handleDeleteCustomer}
+  />
+}
+
+{activeTab === 'sales report' && <SalesReport ... />}
       </main>
       <Footer />
     </div>
