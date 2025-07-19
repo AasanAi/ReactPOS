@@ -72,58 +72,58 @@ function MainApp() {
   /* ----------------------------------------------------------
      Products CRUD – Firestore
   ---------------------------------------------------------- */
-  const handleAddProduct = useCallback(async (productToAdd) => {
+    const handleAddProduct = useCallback(async (productToAdd) => {
     if (!currentUser) return;
-    console.log("1. PRODUCT ADD KARNE KI KOSHISH...");
-    console.log("Data to be added:", productToAdd);
-    console.log("User ID:", currentUser.uid);
-
     try {
       const docRef = await addDoc(
         collection(db, `users/${currentUser.uid}/products`),
         productToAdd
       );
-      console.log("2. Product Firestore mein add ho gaya. Doc ID:", docRef.id);
       setProducts(prev => [...prev, { id: docRef.id, ...productToAdd }]);
-      toast.success("Product add ho gaya!");
+      toast.success("Product added successfully!");
     } catch (error) {
-      console.error("3. Product add nahi ho saka:", error);
-      toast.error("Product add nahi ho saka.");
+      console.error("Error adding product:", error);
+      toast.error("Failed to add product.");
     }
   }, [currentUser]);
 
   const handleUpdateProduct = useCallback(async (updatedProduct) => {
     if (!currentUser) return;
     const { id, ...productData } = updatedProduct;
-    if (!id) return toast.error("Product ID nahi hai. Update nahi ho sakta.");
+    if (!id) {
+        toast.error("Product ID is missing. Cannot update.");
+        return;
+    }
 
     try {
       const productDocRef = doc(db, `users/${currentUser.uid}/products`, id);
       await updateDoc(productDocRef, productData);
       setProducts(prev => prev.map(p => (p.id === id ? updatedProduct : p)));
-      toast.success("Product update ho gaya!");
+      toast.success("Product updated successfully!");
     } catch (error) {
       console.error("Error updating product:", error);
-      toast.error("Product update nahi ho saka.");
+      toast.error("Failed to update product.");
     }
   }, [currentUser]);
 
   const handleDeleteProduct = useCallback(async (productId) => {
     if (!currentUser) return;
-    if (!window.confirm("Delete karna hai?")) return;
+    // Note: The confirmation prompt was moved to the Inventory component for better UI feedback.
+    // If you prefer it here, you can uncomment the next line.
+    // if (!window.confirm("Are you sure you want to delete this product?")) return;
 
     try {
       await deleteDoc(doc(db, `users/${currentUser.uid}/products`, productId));
       setProducts(prev => prev.filter(p => p.id !== productId));
-      toast.success("Product delete ho gaya!");
+      toast.success("Product deleted successfully!");
     } catch (error) {
       console.error("Error deleting product:", error);
-      toast.error("Product delete nahi ho saka.");
+      toast.error("Failed to delete product.");
     }
   }, [currentUser]);
 
   /* ----------------------------------------------------------
-     Sales
+     Sales Handling
   ---------------------------------------------------------- */
   const handleProcessSale = useCallback(async (saleRecord) => {
     if (!currentUser) return;
@@ -133,47 +133,60 @@ function MainApp() {
         saleRecord
       );
       setSalesHistory(prev => [...prev, { id: docRef.id, ...saleRecord }]);
-      toast.success("Sale record ho gayi!");
+      toast.success("Sale recorded successfully!");
+      // Advanced: Here you would also update the stock for each product sold.
     } catch (error) {
       console.error("Error processing sale:", error);
-      toast.error("Sale record nahi ho saki.");
+      toast.error("Failed to record sale.");
     }
   }, [currentUser]);
 
   /* ----------------------------------------------------------
-     Clear ALL data (batch delete)
+     Clear ALL data (using a batch delete for efficiency)
   ---------------------------------------------------------- */
   const handleClearAllData = useCallback(async () => {
     if (!currentUser) return;
 
-    const confirmation = "DELETE";
-    const userInput = prompt(`Type "${confirmation}" to confirm`);
-    if (userInput !== confirmation) return;
+    const confirmationText = "DELETE";
+    const userInput = prompt(`This action is irreversible and will delete all products and sales. To confirm, please type: ${confirmationText}`);
 
-    toast.loading("Deleting everything...");
+    if (userInput !== confirmationText) {
+      if (userInput !== null) { // User clicked OK but didn't type correctly
+        toast.error("Confirmation text did not match. Action cancelled.");
+      }
+      return;
+    }
+
+    toast.loading("Clearing all data...");
     try {
       const batch = writeBatch(db);
 
-      // Products
-      const prods = await getDocs(
+      // Get all products to delete
+      const productsSnapshot = await getDocs(
         collection(db, `users/${currentUser.uid}/products`)
       );
-      prods.forEach(d => batch.delete(d.ref));
+      productsSnapshot.forEach(document => batch.delete(document.ref));
 
-      // Sales
-      const sales = await getDocs(
+      // Get all sales to delete
+      const salesSnapshot = await getDocs(
         collection(db, `users/${currentUser.uid}/sales`)
       );
-      sales.forEach(d => batch.delete(d.ref));
+      salesSnapshot.forEach(document => batch.delete(document.ref));
 
+      // Commit the batch delete
       await batch.commit();
-      toast.dismiss();
-      toast.success("Saara data clear ho chuka hai.");
+
+      toast.dismiss(); // Dismiss the "loading" toast
+      toast.success("All data has been successfully cleared.");
+      
+      // Clear local state
       setProducts([]);
       setSalesHistory([]);
+
     } catch (error) {
-      toast.dismiss();
-      toast.error("Data clear nahi ho saka.");
+      toast.dismiss(); // Dismiss the "loading" toast
+      console.error("Error clearing all data:", error);
+      toast.error("Failed to clear data.");
     }
   }, [currentUser]);
 
