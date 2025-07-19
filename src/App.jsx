@@ -247,12 +247,16 @@ const handleDeleteCustomer = useCallback(async (customerIdToDelete) => {
   /* ----------------------------------------------------------
      Render
   ---------------------------------------------------------- */
-  return (
+    return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans flex flex-col">
       <Header activeTab={activeTab} setActiveTab={setActiveTab} />
       <main className="flex-grow animate-fade-in-up" key={activeTab}>
-        {activeTab === 'dashboard'   && <Dashboard products={products} salesHistory={salesHistory} />}
-        {activeTab === 'pos'         && (
+        
+        {activeTab === 'dashboard' && (
+          <Dashboard products={products} salesHistory={salesHistory} />
+        )}
+        
+        {activeTab === 'pos' && (
           <POS
             products={products}
             onProcessSale={handleProcessSale}
@@ -260,7 +264,8 @@ const handleDeleteCustomer = useCallback(async (customerIdToDelete) => {
             setCart={setCart}
           />
         )}
-        {activeTab === 'inventory'   && (
+        
+        {activeTab === 'inventory' && (
           <Inventory
             products={products}
             onAddProduct={handleAddProduct}
@@ -268,21 +273,25 @@ const handleDeleteCustomer = useCallback(async (customerIdToDelete) => {
             onDeleteProduct={handleDeleteProduct}
           />
         )}
-        {activeTab === 'sales report' && <SalesReport salesHistory={salesHistory} />}
-        {activeTab === 'settings'     && <Settings onClearData={handleClearAllData} />}
-		{activeTab === 'inventory' && <Inventory ... />}
 
-{/* YEH NAYA CODE ADD KAREIN */}
-{activeTab === 'customers' && 
-  <Customers 
-    customers={customers}
-    onAddCustomer={handleAddCustomer}
-    onUpdateCustomer={handleUpdateCustomer}
-    onDeleteCustomer={handleDeleteCustomer}
-  />
-}
+        {/* YEH NAYA CUSTOMERS WALA TAB SAHI JAGAH PAR HAI */}
+        {activeTab === 'customers' && (
+          <Customers 
+            customers={customers}
+            onAddCustomer={handleAddCustomer}
+            onUpdateCustomer={handleUpdateCustomer}
+            onDeleteCustomer={handleDeleteCustomer}
+          />
+        )}
+        
+        {activeTab === 'sales report' && (
+          <SalesReport salesHistory={salesHistory} />
+        )}
+        
+        {activeTab === 'settings' && (
+          <Settings onClearData={handleClearAllData} />
+        )}
 
-{activeTab === 'sales report' && <SalesReport ... />}
       </main>
       <Footer />
     </div>
