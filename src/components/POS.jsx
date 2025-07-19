@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import Modal from 'react-modal';
 
-// --- CHANGED ---
-// setProducts aur setSalesHistory props hata diye gaye hain.
-// onProcessSale naya prop hai jo App.jsx se aa raha hai.
+// Component ko App.jsx se props mil rahe hain
 function POS({ products, onProcessSale, cart, setCart }) {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [tenderedAmount, setTenderedAmount] = useState(0);
@@ -12,16 +10,13 @@ function POS({ products, onProcessSale, cart, setCart }) {
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [receiptData, setReceiptData] = useState(null);
 
+  // --- SAHI KIYE HUE FUNCTIONS ---
+
   const increaseQuantity = (barcode) => {
     const productInStock = products.find(p => p.barcode === barcode);
     const itemInCart = cart.find(item => item.barcode === barcode);
 
-      const increaseQuantity = (barcode) => {
-    const productInStock = products.find(p => p.barcode === barcode);
-    const itemInCart = cart.find(item => item.barcode === barcode);
-
-    if (!productInStock || productInStock.quantity <= itemInCart.quantity) {
-      // CHANGED: Urdu/mixed message to English
+    if (!productInStock || productInStock.quantity <= (itemInCart ? itemInCart.quantity : 0)) {
       toast.error("Not enough stock available!");
       return;
     }
@@ -30,6 +25,8 @@ function POS({ products, onProcessSale, cart, setCart }) {
 
   const decreaseQuantity = (barcode) => {
     const itemInCart = cart.find(i => i.barcode === barcode);
+    if (!itemInCart) return;
+
     if (itemInCart.quantity === 1) {
       removeFromCart(barcode);
     } else {
@@ -40,7 +37,6 @@ function POS({ products, onProcessSale, cart, setCart }) {
   const addToCart = (barcode) => {
     const product = products.find((p) => p.barcode === barcode);
     if (!product) {
-      // CHANGED: Urdu/mixed message to English
       toast.error("Product not found!");
       return;
     }
@@ -49,7 +45,6 @@ function POS({ products, onProcessSale, cart, setCart }) {
     const currentQuantityInCart = itemInCart ? itemInCart.quantity : 0;
 
     if (product.quantity <= currentQuantityInCart) {
-      // CHANGED: Urdu/mixed message to English
       toast.error("Out of stock!");
       return;
     }
@@ -70,7 +65,6 @@ function POS({ products, onProcessSale, cart, setCart }) {
 
   const openPaymentModal = () => {
     if (cart.length === 0) {
-      // CHANGED: Urdu/mixed message to English
       toast.error("Cart is empty!");
       return;
     }
@@ -89,11 +83,9 @@ function POS({ products, onProcessSale, cart, setCart }) {
     setChangeAmount(tender - total);
   };
 
-  // --- FINAL UPDATED VERSION ---
   const handleSale = () => {
     const totalAmount = calculateTotal();
     if (tenderedAmount < totalAmount) {
-      // CHANGED: Urdu/mixed message to English
       toast.error("Tendered amount is less than the total!");
       return;
     }
@@ -109,16 +101,11 @@ function POS({ products, onProcessSale, cart, setCart }) {
       change: changeAmount 
     };
 
-    // Call the parent function to handle Firestore logic
     onProcessSale(newSale);
-    
-    // REMOVED: Duplicate success toast from here.
-    // The success toast will now only come from App.jsx after a successful database write.
 
-    // Reset the UI
     setCart([]);
     closePaymentModal();
-    setReceiptData({ ...newSale, id: Date.now() }); // Use a temporary ID for immediate receipt display
+    setReceiptData({ ...newSale, id: Date.now() });
     setIsReceiptModalOpen(true);
   };
   
@@ -142,7 +129,7 @@ function POS({ products, onProcessSale, cart, setCart }) {
         {receiptData && (
           <div>
             <div className="p-6 font-mono text-sm text-black">
-              <h2 className="text-center text-xl font-bold mb-2">Aasan POS</h2><p className="text-center">Sale Receipt</p><hr className="my-3 border-dashed border-black" /><p><strong>Sale ID:</strong> {receiptData.id}</p><p><strong>Date:</strong> {new Date(receiptData.date).toLocaleString()}</p><hr className="my-3 border-dashed border-black" /><table className="w-full"><thead><tr><th className="text-left">Item</th><th className="text-right">Qty</th><th className="text-right">Price</th><th className="text-right">Total</th></tr></thead><tbody>{receiptData.items.map(item => (<tr key={item.barcode}><td>{item.name}</td><td className="text-right">{item.quantity}</td><td className="text-right">{item.price.toFixed(2)}</td><td className="text-right">{(item.price * item.quantity).toFixed(2)}</td></tr>))}</tbody></table><hr className="my-3 border-dashed border-black" /><div className="flex justify-end mt-2"><div className="w-2/3"><p className="flex justify-between"><strong>Subtotal:</strong> <span>PKR {receiptData.totalAmount.toFixed(2)}</span></p><p className="flex justify-between"><strong>Tendered:</strong> <span>PKR {receiptData.tendered.toFixed(2)}</span></p><p className="flex justify-between text-lg font-bold mt-1"><strong>Change:</strong> <span>PKR {receiptData.change.toFixed(2)}</span></p></div></div><p className="text-center mt-4 text-xs">Thank you for your purchase!</p>
+              <h2 className="text-center text-xl font-bold mb-2">Aasan POS</h2><p className="text-center">Sale Receipt</p><hr className="my-3 border-dashed border-black" /><p><strong>Sale ID:</strong> ${receiptData.id}</p><p><strong>Date:</strong> ${new Date(receiptData.date).toLocaleString()}</p><hr className="my-3 border-dashed border-black" /><table className="w-full"><thead><tr><th className="text-left">Item</th><th className="text-right">Qty</th><th className="text-right">Price</th><th className="text-right">Total</th></tr></thead><tbody>{receiptData.items.map(item => (<tr key={item.barcode}><td>{item.name}</td><td className="text-right">{item.quantity}</td><td className="text-right">{item.price.toFixed(2)}</td><td className="text-right">{(item.price * item.quantity).toFixed(2)}</td></tr>))}</tbody></table><hr className="my-3 border-dashed border-black" /><div className="flex justify-end mt-2"><div className="w-2/3"><p className="flex justify-between"><strong>Subtotal:</strong> <span>PKR ${receiptData.totalAmount.toFixed(2)}</span></p><p className="flex justify-between"><strong>Tendered:</strong> <span>PKR ${receiptData.tendered.toFixed(2)}</span></p><p className="flex justify-between text-lg font-bold mt-1"><strong>Change:</strong> <span>PKR ${receiptData.change.toFixed(2)}</span></p></div></div><p className="text-center mt-4 text-xs">Thank you for your purchase!</p>
             </div>
             <div className="text-center p-4 bg-gray-50 rounded-b-lg flex justify-between">
               <button onClick={downloadReceipt} className="bg-teal-600 text-white px-6 py-2 rounded-lg hover:bg-teal-700">Download Receipt</button>
