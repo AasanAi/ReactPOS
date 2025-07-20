@@ -164,6 +164,9 @@ function MainApp() {
 
 export default function App() {
   const { currentUser, loading } = useAuth();
+  console.log("--- App Component Rendered ---");
+  console.log("Is loading?", loading);
+  console.log("Current User Object:", currentUser);
   if (loading) return <LoadingSpinner />;
   return (
     <>
