@@ -161,7 +161,7 @@ function SalesReport({ salesHistory }) {
                 <div className="w-full">
                   <p className="flex justify-between"><strong>Subtotal:</strong> <span>PKR {(selectedSale.totalAmount || 0).toFixed(2)}</span></p>
                   <p className="flex justify-between"><strong>Amount Paid:</strong> <span>PKR {(selectedSale.amountPaid || 0).toFixed(2)}</span></p>
-                  <p className="flex justify-between font-bold text-lg mt-1"><strong>Profit on Sale:</strong> <span>PKR {(selectedSale.totalProfit || 0).toFixed(2)}</span></p>
+   
                 </div>
               </div>
             </div>
