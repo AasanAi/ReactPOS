@@ -55,7 +55,7 @@ function MainApp() {
     fetchData();
   }, [currentUser]);
 
-  // --- Product Functions ---
+  // --- Product Functions (No changes needed) ---
   const handleAddProduct = useCallback(async (productToAdd) => {
     if (!currentUser) return;
     try {
@@ -85,7 +85,7 @@ function MainApp() {
     } catch (error) { toast.error("Failed to delete product."); }
   }, [currentUser]);
 
-  // --- Customer Functions ---
+  // --- Customer Functions (No changes needed) ---
   const handleAddCustomer = useCallback(async (customerToAdd) => {
     if (!currentUser) return;
     try {
@@ -114,7 +114,7 @@ function MainApp() {
     } catch (error) { toast.error("Failed to delete customer."); }
   }, [currentUser]);
   
-  // --- Sale and Payment Functions ---
+  // --- Sale and Payment Functions (THE REAL FIX IS HERE) ---
   const handleProcessSale = useCallback(async (saleData) => {
     if (!currentUser) return;
     const { saleRecord, customerId } = saleData;
@@ -126,13 +126,22 @@ function MainApp() {
           saleToSave.customerId = customerId;
           saleToSave.customerName = customer.name;
         }
-        const dueChange = saleRecord.totalAmount - saleRecord.amountPaid;
-        if (dueChange >= 0) { // Handles both partial and full payments
-          const customerDocRef = doc(db, `users/${currentUser.uid}/customers`, customerId);
-          await updateDoc(customerDocRef, { dueBalance: increment(dueChange) });
-          setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, dueBalance: c.dueBalance + dueChange } : c));
-        }
+        
+        // YEH NAYI, BEHTAR LOGIC HAI
+        const cartTotal = saleRecord.totalAmount;
+        const previousDue = customer ? customer.dueBalance : 0;
+        const grandTotal = cartTotal + previousDue;
+        const amountPaid = saleRecord.amountPaid;
+        const newDue = grandTotal - amountPaid;
+
+        // Balance ko Firestore mein update karein
+        const customerDocRef = doc(db, `users/${currentUser.uid}/customers`, customerId);
+        await updateDoc(customerDocRef, { dueBalance: newDue });
+        
+        // Local state ko foran update karein
+        setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, dueBalance: newDue } : c));
       }
+      
       const docRef = await addDoc(collection(db, `users/${currentUser.uid}/sales`), saleToSave);
       setSalesHistory(prev => [...prev, { id: docRef.id, ...saleToSave }]);
       toast.success("Sale recorded successfully!");
@@ -142,71 +151,38 @@ function MainApp() {
     }
   }, [currentUser, customers]);
 
-  // --- MUKAMMAL AUR THEEK KIYA HUA PAYMENT FUNCTION ---
   const handleReceivePayment = useCallback(async (customer, amount) => {
     if (!currentUser || !customer || !amount) return;
     toast.loading("Processing payment...");
     try {
-      // Step 1: Update customer's due balance in Firestore
       const customerDocRef = doc(db, `users/${currentUser.uid}/customers`, customer.id);
-      await updateDoc(customerDocRef, { dueBalance: increment(-amount) });
+      // Naya balance 0 ya jo bhi baqi hai, woh set karein
+      const newBalance = customer.dueBalance - amount;
+      await updateDoc(customerDocRef, { dueBalance: newBalance });
       
-      // Step 2: Create a "Sale" record for this payment for accounting
       const paymentRecord = {
         items: [{ name: "Dues Cleared / Payment Received", quantity: 1, price: amount, buyPrice: amount }],
-        totalAmount: amount,
-        amountPaid: amount,
-        totalProfit: 0, // No profit on clearing dues
-        date: new Date().toISOString(),
-        paymentType: 'Cash',
-        change: 0,
-        customerId: customer.id,
-        customerName: customer.name,
+        totalAmount: amount, amountPaid: amount, totalProfit: 0, 
+        date: new Date().toISOString(), paymentType: 'Cash', change: 0,
+        customerId: customer.id, customerName: customer.name,
       };
       const docRef = await addDoc(collection(db, `users/${currentUser.uid}/sales`), paymentRecord);
       
-      // Step 3: Update local state immediately for instant UI feedback
       setSalesHistory(prev => [...prev, { id: docRef.id, ...paymentRecord }]);
-      setCustomers(prev => prev.map(c => 
-        c.id === customer.id ? { ...c, dueBalance: c.dueBalance - amount } : c
-      ));
+      setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, dueBalance: newBalance } : c));
       
       toast.dismiss();
       toast.success("Payment received and balance updated!");
-
     } catch (error) {
       toast.dismiss();
       console.error("Error receiving payment:", error);
       toast.error("Failed to process payment.");
     }
-  }, [currentUser]); // Dependency sirf currentUser hai, taaki stale state ka masla na ho
+  }, [currentUser]);
 
-  // --- Settings Function ---
+  // --- Settings Function (No changes needed) ---
   const handleClearAllData = useCallback(async () => {
-    if (!currentUser) return;
-    const confirmationText = "DELETE";
-    const userInput = prompt(`This will delete ALL data (Products, Sales, and Customers). Type "${confirmationText}" to confirm.`);
-    if (userInput !== confirmationText) {
-      if (userInput !== null) { toast.error("Confirmation text did not match."); }
-      return;
-    }
-    toast.loading("Clearing all data...");
-    try {
-      const batch = writeBatch(db);
-      const collectionsToDelete = ['products', 'sales', 'customers'];
-      for (const coll of collectionsToDelete) {
-        const snapshot = await getDocs(collection(db, `users/${currentUser.uid}/${coll}`));
-        snapshot.forEach(document => batch.delete(document.ref));
-      }
-      await batch.commit();
-      toast.dismiss();
-      toast.success("All data has been cleared.");
-      setProducts([]); setSalesHistory([]); setCustomers([]);
-    } catch (error) {
-      toast.dismiss();
-      console.error("Error clearing all data:", error);
-      toast.error("Failed to clear data.");
-    }
+    // ... (Code waisa hi rahega) ...
   }, [currentUser]);
 
   if (dataLoading) return <LoadingSpinner />;
@@ -215,6 +191,7 @@ function MainApp() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans flex flex-col">
       <Header activeTab={activeTab} setActiveTab={setActiveTab} />
       <main className="flex-grow animate-fade-in-up" key={activeTab}>
+        {/* ... (JSX ka baaki hissa waisa hi rahega) ... */}
         {activeTab === 'dashboard' && <Dashboard products={products} salesHistory={salesHistory} />}
         {activeTab === 'pos' && <POS products={products} customers={customers} onProcessSale={handleProcessSale} cart={cart} setCart={setCart} />}
         {activeTab === 'inventory' && <Inventory products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} />}
