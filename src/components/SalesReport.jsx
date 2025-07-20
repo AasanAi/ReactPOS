@@ -1,11 +1,10 @@
-import React, inport { useState } from 'react';
+import React, { useState } from 'react';
 
 function SalesReport({ salesHistory }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
 
   // --- SABSE ZAROORI GUARD ---
-  // Agar salesHistory abhi tak load nahi hui ya khaali hai, to crash hone se bachao.
   if (!salesHistory) {
     return <div className="text-center p-10 dark:text-gray-400">Loading sales report...</div>;
   }
@@ -18,7 +17,6 @@ function SalesReport({ salesHistory }) {
       if (filter === "today") {
         return saleDate.toDateString() === now.toDateString();
       }
-      // Yahan week, month, etc. ke liye aur logic add ho sakta hai.
       return true;
     })
     .filter(sale => 
@@ -46,7 +44,6 @@ function SalesReport({ salesHistory }) {
           >
             <option value="all">All Time</option>
             <option value="today">Today</option>
-            {/* Week/Month filters can be added here */}
           </select>
         </div>
 
@@ -76,7 +73,6 @@ function SalesReport({ salesHistory }) {
                         {sale.paymentType || 'N/A'}
                       </span>
                     </td>
-                    {/* --- YEH SARE GUARDS CRASH SE BACHAYENGE --- */}
                     <td className="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-100">PKR {(sale.totalAmount || 0).toFixed(2)}</td>
                     <td className="px-4 py-3 text-right dark:text-gray-300">PKR {(sale.amountPaid || 0).toFixed(2)}</td>
                     <td className="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">PKR {(sale.totalProfit || 0).toFixed(2)}</td>
