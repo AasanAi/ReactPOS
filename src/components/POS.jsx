@@ -3,20 +3,26 @@ import toast from 'react-hot-toast';
 import Modal from 'react-modal';
 
 function POS({ products, customers, onProcessSale, cart, setCart }) {
-  // ✅ Move all hooks BEFORE any condition
   const [selectedCustomer, setSelectedCustomer] = useState('walk-in');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [tenderedAmount, setTenderedAmount] = useState(0);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [receiptData, setReceiptData] = useState(null);
 
-  // Guard clause
-  if (!customers || !products) {
-    return (
-      <div className="text-center p-10 dark:text-gray-400">
-        Loading POS data...
-      </div>
-    );
+  // Debug logs
+  console.log("POS loaded");
+  console.log("Products:", products);
+  console.log("Customers:", customers);
+
+  // Improved guard clauses
+  if (!Array.isArray(products) || !Array.isArray(customers)) {
+    return <div className="text-center text-red-500 p-6">POS data not loaded!</div>;
+  }
+  if (products.length === 0) {
+    return <div className="text-center text-yellow-500 p-6">No products found in database!</div>;
+  }
+  if (customers.length === 0) {
+    return <div className="text-center text-yellow-500 p-6">No customers found in database!</div>;
   }
 
   const increaseQuantity = (barcode) => {
@@ -61,13 +67,11 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
 
   const openPaymentModal = () => {
     if (cart.length === 0) { toast.error("Cart is empty!"); return; }
-    const total = calculateTotal();
-    setTenderedAmount(total);
+    setTenderedAmount(calculateTotal());
     setIsPaymentModalOpen(true);
   };
 
   const closePaymentModal = () => setIsPaymentModalOpen(false);
-
   const handleTenderChange = (e) => setTenderedAmount(e.target.value);
 
   const handleSale = () => {
@@ -112,35 +116,32 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
     setSelectedCustomer('walk-in');
   };
 
-  const downloadReceipt = () => {
-    if (!receiptData) return;
-    const receiptHTML = `
-      <html><head><title>Aasan POS - Receipt #${receiptData.id}</title></head><body>
-      <h2>Sale Receipt</h2><p>ID: ${receiptData.id}</p><p>Date: ${new Date(receiptData.date).toLocaleString()}</p>
-      <p>Customer: ${receiptData.customerName}</p><hr/>
-      <table><thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>
-      ${receiptData.items.map(i => `<tr><td>${i.name}</td><td>${i.quantity}</td><td>${i.price}</td><td>${(i.price * i.quantity).toFixed(2)}</td></tr>`).join('')}
-      </tbody></table><hr/>
-      <p>Total: ${receiptData.totalAmount}</p>
-      <p>Paid: ${receiptData.amountPaid}</p>
-      <p>Change: ${receiptData.change}</p>
-      ${receiptData.customerName !== "Walk-in Customer" ? `<p>Previous Due: ${receiptData.previousDue}</p><p>New Due: ${receiptData.newDue}</p>` : ''}
-      </body></html>`;
-
-    const blob = new Blob([receiptHTML], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `receipt-${receiptData.id}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  // You can keep your return JSX as-is (was working fine)
   return (
-    <div>
-      {/* Your complete JSX remains unchanged */}
-      {/* You can paste the remaining JSX from your existing code here */}
+    <div className="p-6 text-center">
+      <h2 className="text-2xl font-bold mb-4">POS Working Properly</h2>
+      <p className="mb-2">Products: {products.length}</p>
+      <p className="mb-2">Customers: {customers.length}</p>
+      <input
+        type="text"
+        placeholder="Enter barcode"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            addToCart(e.target.value);
+            e.target.value = '';
+          }
+        }}
+        className="border px-4 py-2 rounded"
+      />
+      <button onClick={openPaymentModal} className="ml-4 px-6 py-2 bg-blue-600 text-white rounded">Pay</button>
+      <Modal isOpen={isPaymentModalOpen} onRequestClose={closePaymentModal}>
+        <h2>Payment Modal</h2>
+        <input
+          type="number"
+          value={tenderedAmount}
+          onChange={handleTenderChange}
+        />
+        <button onClick={handleSale}>Confirm</button>
+      </Modal>
     </div>
   );
 }
