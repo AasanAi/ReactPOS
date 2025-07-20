@@ -168,7 +168,7 @@ function SalesReport({ salesHistory }) {
             <p><strong>Payment Type:</strong> {selectedSale.paymentType}</p>
             <p><strong>Total:</strong> PKR {(selectedSale.totalAmount || 0).toFixed(2)}</p>
             <p><strong>Paid:</strong> PKR {(selectedSale.amountPaid || 0).toFixed(2)}</p>
-            <p><strong>Profit:</strong> PKR {(selectedSale.totalProfit || 0).toFixed(2)}</p>
+            
 
             <div className="flex justify-end gap-2 mt-6">
               <button
