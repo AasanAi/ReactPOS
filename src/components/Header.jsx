@@ -1,12 +1,38 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react'; // useEffect ko import karein
 import { useAuth } from '../context/AuthContext';
 import { FiLogOut, FiMoon, FiSun } from 'react-icons/fi';
-import DarkModeToggle from './DarkModeToggle';
+
+// --- YEH NAYA, MUKAMMAL DARK MODE COMPONENT HAI ---
+// Isko alag file ki zaroorat nahi
+function DarkModeToggle() {
+  // Check localStorage for the saved theme
+  const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(prevMode => !prevMode);
+  };
+
+  return (
+    <button onClick={toggleDarkMode} className="text-gray-600 dark:text-gray-300 hover:text-teal-500 dark:hover:text-teal-400 transition-colors">
+      {isDarkMode ? <FiSun size={22} /> : <FiMoon size={22} />}
+    </button>
+  );
+}
+
 
 function Header({ activeTab, setActiveTab }) {
   const { logout } = useAuth();
   
-  // Naya tab 'customers' add kiya gaya hai
   const tabs = ['dashboard', 'pos', 'inventory', 'customers', 'sales report', 'settings'];
 
   const handleLogout = async () => {
@@ -37,7 +63,8 @@ function Header({ activeTab, setActiveTab }) {
           ))}
         </div>
         <div className="flex items-center space-x-4">
-          <DarkModeToggle />
+          {/* Ab yeh component bilkul theek kaam karega */}
+          <DarkModeToggle /> 
           <button onClick={handleLogout} className="text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 transition-colors">
             <FiLogOut size={22} />
           </button>
