@@ -14,15 +14,11 @@ function Customers({ customers, onAddCustomer, onUpdateCustomer, onDeleteCustome
       toast.error("Customer Name and Phone are required!");
       return;
     }
-
     if (editingCustomer) {
       onUpdateCustomer(newCustomer);
     } else {
-      // Shuru mein har naye customer ka due balance 0 hoga
       onAddCustomer({ ...newCustomer, dueBalance: 0 });
     }
-
-    // Form ko reset karein
     setNewCustomer({ name: "", phone: "", address: "" });
     setEditingCustomer(null);
   };
@@ -38,7 +34,7 @@ function Customers({ customers, onAddCustomer, onUpdateCustomer, onDeleteCustome
   };
 
   const handleDeleteClick = (customerId) => {
-    if (window.confirm("Are you sure you want to delete this customer?")) {
+    if (window.confirm("Are you sure you want to delete this customer? This action cannot be undone.")) {
       onDeleteCustomer(customerId);
     }
   };
@@ -46,7 +42,7 @@ function Customers({ customers, onAddCustomer, onUpdateCustomer, onDeleteCustome
   const openPaymentModal = (customer) => {
     setPayingCustomer(customer);
     setIsPaymentModalOpen(true);
-    setPaymentAmount(""); // Reset amount
+    setPaymentAmount("");
   };
 
   const closePaymentModal = () => {
@@ -72,7 +68,6 @@ function Customers({ customers, onAddCustomer, onUpdateCustomer, onDeleteCustome
   return (
     <div className="container mx-auto px-6 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Customer Add/Edit Form */}
         <div className="lg:col-span-1 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
           <h3 className="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">
             {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
@@ -101,7 +96,6 @@ function Customers({ customers, onAddCustomer, onUpdateCustomer, onDeleteCustome
           </div>
         </div>
 
-        {/* Customer List */}
         <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
           <h3 className="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">Customer List</h3>
           <div className="overflow-x-auto max-h-[60vh]">
@@ -133,7 +127,6 @@ function Customers({ customers, onAddCustomer, onUpdateCustomer, onDeleteCustome
         </div>
       </div>
 
-      {/* Customer Payment Modal */}
       <Modal 
         isOpen={isPaymentModalOpen} 
         onRequestClose={closePaymentModal}

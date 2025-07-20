@@ -123,7 +123,7 @@ function MainApp() {
           saleToSave.customerName = customer.name;
         }
         const dueAmount = saleRecord.totalAmount - saleRecord.amountPaid;
-        if (dueAmount >= 0) { // Should be >= to handle full payments on credit customers
+        if (dueAmount >= 0) {
           const customerDocRef = doc(db, `users/${currentUser.uid}/customers`, customerId);
           await updateDoc(customerDocRef, { dueBalance: increment(dueAmount) });
           setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, dueBalance: c.dueBalance + dueAmount } : c));
@@ -132,7 +132,10 @@ function MainApp() {
       const docRef = await addDoc(collection(db, `users/${currentUser.uid}/sales`), saleToSave);
       setSalesHistory(prev => [...prev, { id: docRef.id, ...saleToSave }]);
       toast.success("Sale recorded successfully!");
-    } catch (error) { toast.error("Failed to record sale."); }
+    } catch (error) { 
+      console.error("Error processing sale:", error);
+      toast.error("Failed to record sale."); 
+    }
   }, [currentUser, customers]);
 
   const handleReceivePayment = useCallback(async (customer, amount) => {
@@ -141,16 +144,18 @@ function MainApp() {
     try {
       const customerDocRef = doc(db, `users/${currentUser.uid}/customers`, customer.id);
       await updateDoc(customerDocRef, { dueBalance: increment(-amount) });
+      
       const paymentRecord = {
-        items: [{name: "Dues Cleared", quantity: 1, price: amount, buyPrice: amount}],
+        items: [{name: "Dues Cleared / Payment Received", quantity: 1, price: amount, buyPrice: amount}],
         totalAmount: amount, amountPaid: amount, totalProfit: 0, 
         date: new Date().toISOString(), paymentType: 'Cash', change: 0,
         customerId: customer.id, customerName: customer.name,
       };
-      await addDoc(collection(db, `users/${currentUser.uid}/sales`), paymentRecord);
-      const salesSnapshot = await getDocs(collection(db, `users/${currentUser.uid}/sales`));
-      setSalesHistory(salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const docRef = await addDoc(collection(db, `users/${currentUser.uid}/sales`), paymentRecord);
+      
+      setSalesHistory(prev => [...prev, { id: docRef.id, ...paymentRecord }]);
       setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, dueBalance: c.dueBalance - amount } : c));
+      
       toast.dismiss();
       toast.success("Payment received successfully!");
     } catch (error) {
@@ -163,7 +168,7 @@ function MainApp() {
   const handleClearAllData = useCallback(async () => {
     if (!currentUser) return;
     const confirmationText = "DELETE";
-    const userInput = prompt(`This will delete ALL data. Type "${confirmationText}" to confirm.`);
+    const userInput = prompt(`This will delete ALL data (Products, Sales, and Customers). This action cannot be undone. Type "${confirmationText}" to confirm.`);
     if (userInput !== confirmationText) {
       if (userInput !== null) { toast.error("Confirmation text did not match."); }
       return;
