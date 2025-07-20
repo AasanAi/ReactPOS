@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
 // YEH SAHI AUR MUKAMMAL IMPORT HAI
+// YEH LINE ADD KARNI HAI
+import { db } from './firebase.js';
 import {
   collection,
   getDocs,
