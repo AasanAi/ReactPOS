@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
-import { ..., updateDoc, doc, increment } from "firebase/firestore";
-
-// Firebase Imports
-import { db } from './firebase.js';
+// YEH SAHI AUR MUKAMMAL IMPORT HAI
 import {
   collection,
   getDocs,
@@ -12,7 +9,8 @@ import {
   doc,
   updateDoc,
   deleteDoc,
-  writeBatch
+  writeBatch,
+  increment // <-- Naya function yahan add ho gaya hai
 } from "firebase/firestore";
 
 // Component Imports
