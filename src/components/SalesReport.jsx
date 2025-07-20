@@ -1,10 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { useReactToPrint } from 'react-to-print';
+
+function SaleReceipt({ sale }, ref) {
+  if (!sale) return null;
+
+  return (
+    <div ref={ref} className="p-6 font-sans text-sm text-gray-800 w-[300px]">
+      <h2 className="text-lg font-bold text-center mb-4">Sales Receipt</h2>
+      <div><strong>Sale ID:</strong> {sale.id}</div>
+      <div><strong>Date:</strong> {new Date(sale.date).toLocaleString()}</div>
+      <div><strong>Customer:</strong> {sale.customerName || 'Walk-in'}</div>
+      <div><strong>Payment Type:</strong> {sale.paymentType}</div>
+      <hr className="my-2" />
+      <div><strong>Total Amount:</strong> PKR {(sale.totalAmount || 0).toFixed(2)}</div>
+      <div><strong>Amount Paid:</strong> PKR {(sale.amountPaid || 0).toFixed(2)}</div>
+      <div><strong>Profit:</strong> PKR {(sale.totalProfit || 0).toFixed(2)}</div>
+      <p className="text-center mt-4">Thank you for your purchase!</p>
+    </div>
+  );
+}
+
+const ForwardedSaleReceipt = React.forwardRef(SaleReceipt);
 
 function SalesReport({ salesHistory }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
+  const [selectedSale, setSelectedSale] = useState(null);
+  const receiptRef = useRef();
 
-  // --- SABSE ZAROORI GUARD ---
+  const handlePrint = useReactToPrint({
+    content: () => receiptRef.current,
+  });
+
   if (!salesHistory) {
     return <div className="text-center p-10 dark:text-gray-400">Loading sales report...</div>;
   }
@@ -59,6 +86,7 @@ function SalesReport({ salesHistory }) {
                 <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Total Amount</th>
                 <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Amount Paid</th>
                 <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Profit</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-600 dark:text-gray-300">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -76,11 +104,22 @@ function SalesReport({ salesHistory }) {
                     <td className="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-100">PKR {(sale.totalAmount || 0).toFixed(2)}</td>
                     <td className="px-4 py-3 text-right dark:text-gray-300">PKR {(sale.amountPaid || 0).toFixed(2)}</td>
                     <td className="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">PKR {(sale.totalProfit || 0).toFixed(2)}</td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() => {
+                          setSelectedSale(sale);
+                          setTimeout(() => handlePrint(), 100);
+                        }}
+                        className="text-blue-600 hover:underline text-xs"
+                      >
+                        Print Receipt
+                      </button>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="text-center py-10 text-gray-500 dark:text-gray-400">
+                  <td colSpan="8" className="text-center py-10 text-gray-500 dark:text-gray-400">
                     No sales found for this period.
                   </td>
                 </tr>
@@ -88,6 +127,11 @@ function SalesReport({ salesHistory }) {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Hidden Printable Receipt */}
+      <div style={{ display: 'none' }}>
+        <ForwardedSaleReceipt ref={receiptRef} sale={selectedSale} />
       </div>
     </div>
   );
