@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Modal from 'react-modal';
+import toast from 'react-hot-toast'; // --- YEH MISSING LINE ADD KAR DI GAYI HAI ---
 import { utils, writeFile } from 'xlsx';
 
 // Zaroori Note: Agar Excel export kaam na kare, to terminal mein yeh command chalayein: npm install xlsx
@@ -9,17 +10,18 @@ function SalesReport({ salesHistory }) {
   const [filter, setFilter] = useState("all");
   const [selectedSale, setSelectedSale] = useState(null);
 
-  // Guard clause: Agar salesHistory abhi tak load nahi hui, to crash hone se bachao.
   if (!salesHistory) {
     return <div className="text-center p-10 dark:text-gray-400">Loading sales report...</div>;
   }
 
   const filteredSales = salesHistory
     .filter(sale => {
+      if (filter === "all") return true;
       const saleDate = new Date(sale.date);
       const now = new Date();
-      if (filter === "today") return saleDate.toDateString() === now.toDateString();
-      if (filter === "all") return true;
+      if (filter === "today") {
+        return saleDate.toDateString() === now.toDateString();
+      }
       return true;
     })
     .filter(sale =>
