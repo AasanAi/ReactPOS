@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
+import { ..., updateDoc, doc, increment } from "firebase/firestore";
 
 // Firebase Imports
 import { db } from './firebase.js';
@@ -152,17 +153,53 @@ function MainApp() {
   }, [currentUser]);
 
   /* --- Sales & Data Management --- */
-  const handleProcessSale = useCallback(async (saleRecord) => {
-    if (!currentUser) return;
-    try {
-      const docRef = await addDoc(collection(db, `users/${currentUser.uid}/sales`), saleRecord);
-      setSalesHistory(prev => [...prev, { id: docRef.id, ...saleRecord }]);
-      toast.success("Sale recorded successfully!");
-    } catch (error) {
-      console.error("Error processing sale:", error);
-      toast.error("Failed to record sale.");
+  // App.jsx ke andar...
+
+// Yeh purana handleProcessSale function hoga... use is NAYE WALE se badal dein
+const handleProcessSale = useCallback(async (saleData) => {
+  if (!currentUser) return;
+
+  const { saleRecord, customerId } = saleData; // saleData mein ab customerId bhi aayega
+  let saleToSave = { ...saleRecord };
+
+  try {
+    // Agar koi customer select hua hai (Walk-in nahi)
+    if (customerId !== 'walk-in') {
+      const customer = customers.find(c => c.id === customerId);
+      if (customer) {
+        saleToSave.customerId = customerId;
+        saleToSave.customerName = customer.name;
+      }
+
+      const dueAmount = saleRecord.totalAmount - saleRecord.amountPaid;
+
+      // Agar udhaar hai, to customer ka dueBalance update karein
+      if (dueAmount > 0) {
+        const customerDocRef = doc(db, `users/${currentUser.uid}/customers`, customerId);
+        // increment() istemal karein taaki data sync rahe
+        await updateDoc(customerDocRef, {
+          dueBalance: increment(dueAmount)
+        });
+        // Local state ko bhi update karein taaki foran UI par dikhe
+        setCustomers(prev => prev.map(c => 
+          c.id === customerId ? { ...c, dueBalance: c.dueBalance + dueAmount } : c
+        ));
+      }
     }
-  }, [currentUser]);
+
+    // Sale ko Firestore mein save karein
+    const docRef = await addDoc(
+      collection(db, `users/${currentUser.uid}/sales`),
+      saleToSave
+    );
+    setSalesHistory(prev => [...prev, { id: docRef.id, ...saleToSave }]);
+    toast.success("Sale recorded successfully!");
+
+  } catch (error) {
+    console.error("Error processing sale:", error);
+    toast.error("Failed to record sale.");
+  }
+}, [currentUser, customers]); // Ab yeh customers state par bhi depend karta hai
 
   const handleClearAllData = useCallback(async () => {
     if (!currentUser) return;
@@ -212,13 +249,14 @@ function MainApp() {
         {activeTab === 'dashboard' && <Dashboard products={products} salesHistory={salesHistory} />}
         
         {activeTab === 'pos' && 
-          <POS
-            products={products}
-            onProcessSale={handleProcessSale}
-            cart={cart}
-            setCart={setCart}
-          />
-        }
+  <POS 
+    products={products}
+    customers={customers} // <-- YEH NAYI LINE ADD KAREIN
+    onProcessSale={handleProcessSale}
+    cart={cart}
+    setCart={setCart}
+  />
+}
         
         {activeTab === 'inventory' && 
           <Inventory

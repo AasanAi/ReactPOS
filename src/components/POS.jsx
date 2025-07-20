@@ -3,7 +3,8 @@ import toast from 'react-hot-toast';
 import Modal from 'react-modal';
 
 // Component ko App.jsx se props mil rahe hain
-function POS({ products, onProcessSale, cart, setCart }) {
+function POS({ products, customers, onProcessSale, cart, setCart }) {
+	const [selectedCustomer, setSelectedCustomer] = useState('walk-in'); // Default "Walk-in"
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [tenderedAmount, setTenderedAmount] = useState(0);
   const [changeAmount, setChangeAmount] = useState(0);
@@ -83,31 +84,47 @@ function POS({ products, onProcessSale, cart, setCart }) {
     setChangeAmount(tender - total);
   };
 
-  const handleSale = () => {
+  // POS.jsx ke andar
+const handleSale = () => {
     const totalAmount = calculateTotal();
-    if (tenderedAmount < totalAmount) {
-      toast.error("Tendered amount is less than the total!");
-      return;
+    // Tendered Amount ab Amount Paid kehlayega
+    const amountPaid = parseFloat(tenderedAmount) || 0;
+
+    // Walk-in customer ke liye poori payment zaroori hai
+    if (selectedCustomer === 'walk-in' && amountPaid < totalAmount) {
+        toast.error("Amount paid is less than the total for a walk-in customer!");
+        return;
+    }
+
+    // Credit customer ke liye bhi, 0 se zyada payment to ho
+    if (amountPaid > totalAmount) {
+        toast.error("Amount paid cannot be more than the total amount!");
+        return;
     }
 
     const totalProfit = cart.reduce((profit, item) => profit + (item.price - item.buyPrice) * item.quantity, 0);
     
-    const newSale = { 
-      items: cart, 
-      totalAmount, 
-      totalProfit, 
-      date: new Date().toISOString(), 
-      tendered: tenderedAmount, 
-      change: changeAmount 
+    const saleRecord = { 
+        items: cart, 
+        totalAmount, 
+        totalProfit, 
+        date: new Date().toISOString(),
+        // Naye fields
+        paymentType: amountPaid < totalAmount ? 'Credit' : 'Cash',
+        amountPaid: amountPaid,
+        change: amountPaid > totalAmount ? amountPaid - totalAmount : 0 // Change ka hisaab
     };
+    
+    // Parent ko ab poora object bhejein
+    onProcessSale({ saleRecord, customerId: selectedCustomer });
 
-    onProcessSale(newSale);
-
+    // UI reset karein
     setCart([]);
     closePaymentModal();
-    setReceiptData({ ...newSale, id: Date.now() });
+    setReceiptData({ ...saleRecord, id: Date.now() });
     setIsReceiptModalOpen(true);
-  };
+    setSelectedCustomer('walk-in'); // Customer ko wapas default par set karein
+};
   
   const downloadReceipt = () => {
     if (!receiptData) return;
@@ -124,7 +141,24 @@ function POS({ products, onProcessSale, cart, setCart }) {
         <div className="lg:col-span-1 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h3 className="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">Search Products</h3><input type="text" placeholder="Enter product barcode..." onKeyDown={e => { if (e.key === "Enter") { addToCart(e.target.value); e.target.value = ""; } }} className="w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" /><div className="mt-4 space-y-2 max-h-[60vh] overflow-y-auto">{products.map((product) => (<div key={product.id} className="flex justify-between items-center p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-teal-50 dark:hover:bg-gray-700" onClick={() => addToCart(product.barcode)}><span className="dark:text-gray-200">{product.name}</span><span className="font-semibold text-gray-800 dark:text-gray-100">PKR {product.salePrice.toFixed(2)}</span></div>))}</div></div>
         <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><h3 className="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">Shopping Cart</h3>{cart.length > 0 ? (<><div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">{cart.map((item) => (<div key={item.barcode} className="flex justify-between items-center border-b pb-3 border-gray-200 dark:border-gray-700"><div><p className="font-semibold text-gray-800 dark:text-gray-100">{item.name}</p><div className="flex items-center gap-3 mt-1"><button onClick={() => decreaseQuantity(item.barcode)} className="bg-gray-200 dark:bg-gray-600 dark:text-gray-100 h-6 w-6 rounded-full font-bold flex items-center justify-center">-</button><span className="dark:text-gray-200">{item.quantity}</span><button onClick={() => increaseQuantity(item.barcode)} className="bg-gray-200 dark:bg-gray-600 dark:text-gray-100 h-6 w-6 rounded-full font-bold flex items-center justify-center">+</button></div></div><div className="flex items-center gap-4"><p className="font-bold text-lg text-gray-800 dark:text-gray-100">PKR {(item.price * item.quantity).toFixed(2)}</p><button onClick={() => removeFromCart(item.barcode)} className="text-red-400 hover:text-red-600 transition-colors">✕</button></div></div>))}</div><div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center"><h4 className="text-xl font-bold dark:text-gray-100">Total:</h4><p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">PKR {calculateTotal().toFixed(2)}</p></div><div className="flex space-x-2 mt-6"><button onClick={openPaymentModal} className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 rounded-lg font-bold text-lg hover:from-emerald-600 hover:to-teal-700 transition-all duration-300 shadow-md hover:shadow-lg">Proceed to Payment</button></div></>) : (<div className="text-center py-16"><p className="text-gray-500 dark:text-gray-400 text-lg">Your cart is empty.</p><p className="text-gray-400 dark:text-gray-500">Scan a product to begin.</p></div>)}</div>
       </div>
-      <Modal isOpen={isPaymentModalOpen} onRequestClose={closePaymentModal} contentLabel="Payment Modal" className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md mx-auto mt-24" overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center"><h2 className="text-2xl font-bold mb-4 dark:text-gray-100">Payment</h2><div className="flex justify-between text-lg mb-2 dark:text-gray-200"><span>Total Amount:</span><span className="font-bold">PKR {calculateTotal().toFixed(2)}</span></div><div className="mb-4"><label htmlFor="tendered" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Amount Tendered</label><input type="number" id="tendered" value={tenderedAmount} onChange={handleTenderChange} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-xl focus:outline-none focus:ring-2 focus:ring-teal-500" autoFocus /></div><div className="flex justify-between text-xl font-bold text-blue-600 dark:text-blue-400 mb-6"><span>Change Due:</span><span>PKR {changeAmount.toFixed(2)}</span></div><div className="flex justify-end space-x-2"><button onClick={closePaymentModal} className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">Cancel</button><button onClick={handleSale} className="bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600">Confirm Sale</button></div></Modal>
+      <Modal isOpen={isPaymentModalOpen} onRequestClose={closePaymentModal} contentLabel="Payment Modal" className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md mx-auto mt-24" overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center"><h2 className="text-2xl font-bold mb-4 dark:text-gray-100">Payment</h2><div className="mb-4">
+    <label htmlFor="customer" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        Customer
+    </label>
+    <select 
+        id="customer" 
+        value={selectedCustomer} 
+        onChange={(e) => setSelectedCustomer(e.target.value)}
+        className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+    >
+        <option value="walk-in">Walk-in Customer (Cash Sale)</option>
+        {customers.map(customer => (
+            <option key={customer.id} value={customer.id}>
+                {customer.name} - {customer.phone}
+            </option>
+        ))}
+    </select>
+</div><div className="flex justify-between text-lg mb-2 dark:text-gray-200"><span>Total Amount:</span><span className="font-bold">PKR {calculateTotal().toFixed(2)}</span></div><div className="mb-4"><label htmlFor="tendered" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Amount Tendered</label><input type="number" id="tendered" value={tenderedAmount} onChange={handleTenderChange} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-xl focus:outline-none focus:ring-2 focus:ring-teal-500" autoFocus /></div><div className="flex justify-between text-xl font-bold text-blue-600 dark:text-blue-400 mb-6"><span>Change Due:</span><span>PKR {changeAmount.toFixed(2)}</span></div><div className="flex justify-end space-x-2"><button onClick={closePaymentModal} className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">Cancel</button><button onClick={handleSale} className="bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600">Confirm Sale</button></div></Modal>
       <Modal isOpen={isReceiptModalOpen} onRequestClose={() => setIsReceiptModalOpen(false)} contentLabel="Receipt Modal" className="bg-white rounded-lg shadow-xl p-0 w-full max-w-sm mx-auto mt-12" overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center">
         {receiptData && (
           <div>
