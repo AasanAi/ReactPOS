@@ -18,7 +18,7 @@ export function useAuth() {
 
 export function AuthProvider({ children }) {
     const [currentUser, setCurrentUser] = useState(null);
-    const [loading, setLoading] = useState(true); // Shuru mein loading true rahegi
+    const [loading, setLoading] = useState(true);
 
     function signup(email, password) {
         return createUserWithEmailAndPassword(auth, email, password);
@@ -36,32 +36,36 @@ export function AuthProvider({ children }) {
         return sendPasswordResetEmail(auth, email);
     }
 
-    // Yeh sabse zaroori hissa hai
     useEffect(() => {
-        // Yeh function tab chalta hai jab user login ya logout hota hai
         const unsubscribe = onAuthStateChanged(auth, user => {
-            // Firebase hamein 'user' object deta hai agar login hai,
-            // ya 'null' deta hai agar logout hai.
+            // Yahan hum sirf Firebase se mila hua 'user' ya 'null' set kar rahe hain.
             setCurrentUser(user); 
-            setLoading(false); // Ab hamein pata chal gaya hai, to loading band kar do
+            setLoading(false);
+        }, error => {
+            // Agar auth state check karne mein hi error aa jaye
+            console.error("Auth State Change Error:", error);
+            setCurrentUser(null); // Error ki soorat mein user ko null set karo
+            setLoading(false);
         });
 
-        // Cleanup function
         return unsubscribe;
-    }, []); // Yeh effect sirf ek baar chalega jab component mount hoga
+    }, []);
 
     const value = {
         currentUser,
         signup,
         login,
-        logout,
+logout,
         resetPassword,
-        loading // loading state ko bhi export karein
+        loading
     };
 
+    // --- YEH SABSE ZAROORI HISSA HAI ---
+    // Hum sirf tab children ko render karenge jab loading poori ho chuki ho.
+    // Isse "White Screen" ka masla hal ho jayega.
     return (
         <AuthContext.Provider value={value}>
-            {children}
+            {!loading && children} 
         </AuthContext.Provider>
     );
 }
