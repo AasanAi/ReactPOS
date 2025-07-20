@@ -21,39 +21,55 @@ import Login from './components/Login';
 import LoadingSpinner from "./components/LoadingSpinner";
 
 function MainApp() {
-  const { currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState("dashboard");
+    // ... (Saare states waise hi rahenge) ...
+    // ... (Saare product aur customer ke CRUD functions waise hi rahenge) ...
+    // ... (handleProcessSale function waisa hi rahega) ...
 
-  const [products, setProducts] = useState([]);
-  const [salesHistory, setSalesHistory] = useState([]);
-  const [customers, setCustomers] = useState([]); // Naya state
-  const [cart, setCart] = useState([]);
-  const [dataLoading, setDataLoading] = useState(true);
+    // --- YEH FUNCTION MUKAMMAL TAUR PAR BADAL GAYA HAI ---
+    const handleReceivePayment = useCallback(async (customer, amount) => {
+        if (!currentUser || !customer || !amount) return;
 
-  useEffect(() => {
-    if (!currentUser) return;
-    const fetchData = async () => {
-      setDataLoading(true);
-      try {
-        // Products
-        const productsSnapshot = await getDocs(collection(db, `users/${currentUser.uid}/products`));
-        setProducts(productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        // Sales
-        const salesSnapshot = await getDocs(collection(db, `users/${currentUser.uid}/sales`));
-        setSalesHistory(salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        // Customers
-        const customersSnapshot = await getDocs(collection(db, `users/${currentUser.uid}/customers`));
-        setCustomers(customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        toast.loading("Processing payment...");
+        try {
+            // Step 1: Customer ka due balance update karein
+            const customerDocRef = doc(db, `users/${currentUser.uid}/customers`, customer.id);
+            await updateDoc(customerDocRef, {
+                dueBalance: increment(-amount)
+            });
+            
+            // Step 2: Is payment ka ek "Sale" record banayein
+            const paymentRecord = {
+                items: [{name: "Dues Cleared", quantity: 1, price: amount, buyPrice: amount}],
+                totalAmount: amount,
+                amountPaid: amount,
+                totalProfit: 0, // Dues clear karne par koi profit nahi
+                date: new Date().toISOString(),
+                paymentType: 'Cash',
+                change: 0,
+                customerId: customer.id,
+                customerName: customer.name,
+            };
+            await addDoc(collection(db, `users/${currentUser.uid}/sales`), paymentRecord);
 
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        toast.error("Failed to load data.");
-      } finally {
-        setDataLoading(false);
-      }
-    };
-    fetchData();
-  }, [currentUser]);
+            // Step 3: Local state ko foran update karein
+            // Pehle saari sales ko dobara fetch karein (taaki nayi payment dikhe)
+            const salesSnapshot = await getDocs(collection(db, `users/${currentUser.uid}/sales`));
+            setSalesHistory(salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            
+            // Phir customer ke local state ko update karein
+            setCustomers(prev => prev.map(c => 
+                c.id === customer.id ? { ...c, dueBalance: c.dueBalance - amount } : c
+            ));
+            
+            toast.dismiss();
+            toast.success("Payment received successfully!");
+
+        } catch (error) {
+            toast.dismiss();
+            console.error("Error receiving payment:", error);
+            toast.error("Failed to process payment.");
+        }
+    }, [currentUser]);
 
   // Product Functions
   const handleAddProduct = useCallback(async (productToAdd) => { /* ... (Pehle jaisa hi) ... */ }, [currentUser]);
