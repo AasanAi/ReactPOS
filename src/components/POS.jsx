@@ -8,7 +8,10 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
   const [tenderedAmount, setTenderedAmount] = useState(0);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [receiptData, setReceiptData] = useState(null);
-
+// YEH MISSING FUNCTION HAI
+const closePaymentModal = () => {
+  setIsPaymentModalOpen(false);
+};
   const calculateTotal = () => cart.reduce((total, item) => total + item.price * item.quantity, 0);
 
   const openPaymentModal = () => {
