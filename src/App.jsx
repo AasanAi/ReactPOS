@@ -30,6 +30,7 @@ function MainApp() {
   const [cart, setCart] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
+  // Data fetching logic
   useEffect(() => {
     if (!currentUser) return;
     const fetchData = async () => {
@@ -54,6 +55,7 @@ function MainApp() {
     fetchData();
   }, [currentUser]);
 
+  // --- Product Functions ---
   const handleAddProduct = useCallback(async (productToAdd) => {
     if (!currentUser) return;
     try {
@@ -66,7 +68,7 @@ function MainApp() {
   const handleUpdateProduct = useCallback(async (updatedProduct) => {
     if (!currentUser) return;
     const { id, ...productData } = updatedProduct;
-    if (!id) { toast.error("Product ID is missing. Cannot update."); return; }
+    if (!id) { toast.error("Product ID is missing."); return; }
     try {
       await updateDoc(doc(db, `users/${currentUser.uid}/products`, id), productData);
       setProducts(prev => prev.map(p => (p.id === id ? updatedProduct : p)));
@@ -83,6 +85,7 @@ function MainApp() {
     } catch (error) { toast.error("Failed to delete product."); }
   }, [currentUser]);
 
+  // --- Customer Functions ---
   const handleAddCustomer = useCallback(async (customerToAdd) => {
     if (!currentUser) return;
     try {
@@ -111,6 +114,7 @@ function MainApp() {
     } catch (error) { toast.error("Failed to delete customer."); }
   }, [currentUser]);
   
+  // --- Sale and Payment Functions ---
   const handleProcessSale = useCallback(async (saleData) => {
     if (!currentUser) return;
     const { saleRecord, customerId } = saleData;
@@ -122,11 +126,11 @@ function MainApp() {
           saleToSave.customerId = customerId;
           saleToSave.customerName = customer.name;
         }
-        const dueAmount = saleRecord.totalAmount - saleRecord.amountPaid;
-        if (dueAmount >= 0) {
+        const dueChange = saleRecord.totalAmount - saleRecord.amountPaid;
+        if (dueChange >= 0) { // Handles both partial and full payments
           const customerDocRef = doc(db, `users/${currentUser.uid}/customers`, customerId);
-          await updateDoc(customerDocRef, { dueBalance: increment(dueAmount) });
-          setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, dueBalance: c.dueBalance + dueAmount } : c));
+          await updateDoc(customerDocRef, { dueBalance: increment(dueChange) });
+          setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, dueBalance: c.dueBalance + dueChange } : c));
         }
       }
       const docRef = await addDoc(collection(db, `users/${currentUser.uid}/sales`), saleToSave);
@@ -138,37 +142,50 @@ function MainApp() {
     }
   }, [currentUser, customers]);
 
+  // --- MUKAMMAL AUR THEEK KIYA HUA PAYMENT FUNCTION ---
   const handleReceivePayment = useCallback(async (customer, amount) => {
     if (!currentUser || !customer || !amount) return;
     toast.loading("Processing payment...");
     try {
+      // Step 1: Update customer's due balance in Firestore
       const customerDocRef = doc(db, `users/${currentUser.uid}/customers`, customer.id);
       await updateDoc(customerDocRef, { dueBalance: increment(-amount) });
       
+      // Step 2: Create a "Sale" record for this payment for accounting
       const paymentRecord = {
-        items: [{name: "Dues Cleared / Payment Received", quantity: 1, price: amount, buyPrice: amount}],
-        totalAmount: amount, amountPaid: amount, totalProfit: 0, 
-        date: new Date().toISOString(), paymentType: 'Cash', change: 0,
-        customerId: customer.id, customerName: customer.name,
+        items: [{ name: "Dues Cleared / Payment Received", quantity: 1, price: amount, buyPrice: amount }],
+        totalAmount: amount,
+        amountPaid: amount,
+        totalProfit: 0, // No profit on clearing dues
+        date: new Date().toISOString(),
+        paymentType: 'Cash',
+        change: 0,
+        customerId: customer.id,
+        customerName: customer.name,
       };
       const docRef = await addDoc(collection(db, `users/${currentUser.uid}/sales`), paymentRecord);
       
+      // Step 3: Update local state immediately for instant UI feedback
       setSalesHistory(prev => [...prev, { id: docRef.id, ...paymentRecord }]);
-      setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, dueBalance: c.dueBalance - amount } : c));
+      setCustomers(prev => prev.map(c => 
+        c.id === customer.id ? { ...c, dueBalance: c.dueBalance - amount } : c
+      ));
       
       toast.dismiss();
-      toast.success("Payment received successfully!");
+      toast.success("Payment received and balance updated!");
+
     } catch (error) {
       toast.dismiss();
       console.error("Error receiving payment:", error);
       toast.error("Failed to process payment.");
     }
-  }, [currentUser]);
+  }, [currentUser]); // Dependency sirf currentUser hai, taaki stale state ka masla na ho
 
+  // --- Settings Function ---
   const handleClearAllData = useCallback(async () => {
     if (!currentUser) return;
     const confirmationText = "DELETE";
-    const userInput = prompt(`This will delete ALL data (Products, Sales, and Customers). This action cannot be undone. Type "${confirmationText}" to confirm.`);
+    const userInput = prompt(`This will delete ALL data (Products, Sales, and Customers). Type "${confirmationText}" to confirm.`);
     if (userInput !== confirmationText) {
       if (userInput !== null) { toast.error("Confirmation text did not match."); }
       return;
