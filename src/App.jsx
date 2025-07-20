@@ -13,7 +13,7 @@ import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import POS from './components/POS';
 import Inventory from './components/Inventory';
-import Customers from './components/Customers'; // Naya component
+import Customers from './components/Customers';
 import SalesReport from './components/SalesReport';
 import Settings from './components/Settings';
 import Footer from './components/Footer';
@@ -21,62 +21,68 @@ import Login from './components/Login';
 import LoadingSpinner from "./components/LoadingSpinner";
 
 function MainApp() {
-    // ... (Saare states waise hi rahenge) ...
-    // ... (Saare product aur customer ke CRUD functions waise hi rahenge) ...
-    // ... (handleProcessSale function waisa hi rahega) ...
+  const { currentUser } = useAuth();
+  const [activeTab, setActiveTab] = useState("dashboard");
 
-    // --- YEH FUNCTION MUKAMMAL TAUR PAR BADAL GAYA HAI ---
-    const handleReceivePayment = useCallback(async (customer, amount) => {
-        if (!currentUser || !customer || !amount) return;
+  const [products, setProducts] = useState([]);
+  const [salesHistory, setSalesHistory] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [cart, setCart] = useState([]);
+  const [dataLoading, setDataLoading] = useState(true);
 
-        toast.loading("Processing payment...");
-        try {
-            // Step 1: Customer ka due balance update karein
-            const customerDocRef = doc(db, `users/${currentUser.uid}/customers`, customer.id);
-            await updateDoc(customerDocRef, {
-                dueBalance: increment(-amount)
-            });
-            
-            // Step 2: Is payment ka ek "Sale" record banayein
-            const paymentRecord = {
-                items: [{name: "Dues Cleared", quantity: 1, price: amount, buyPrice: amount}],
-                totalAmount: amount,
-                amountPaid: amount,
-                totalProfit: 0, // Dues clear karne par koi profit nahi
-                date: new Date().toISOString(),
-                paymentType: 'Cash',
-                change: 0,
-                customerId: customer.id,
-                customerName: customer.name,
-            };
-            await addDoc(collection(db, `users/${currentUser.uid}/sales`), paymentRecord);
+  useEffect(() => {
+    if (!currentUser) return;
+    const fetchData = async () => {
+      setDataLoading(true);
+      try {
+        const productsSnapshot = await getDocs(collection(db, `users/${currentUser.uid}/products`));
+        setProducts(productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        
+        const salesSnapshot = await getDocs(collection(db, `users/${currentUser.uid}/sales`));
+        setSalesHistory(salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        
+        const customersSnapshot = await getDocs(collection(db, `users/${currentUser.uid}/customers`));
+        setCustomers(customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-            // Step 3: Local state ko foran update karein
-            // Pehle saari sales ko dobara fetch karein (taaki nayi payment dikhe)
-            const salesSnapshot = await getDocs(collection(db, `users/${currentUser.uid}/sales`));
-            setSalesHistory(salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            
-            // Phir customer ke local state ko update karein
-            setCustomers(prev => prev.map(c => 
-                c.id === customer.id ? { ...c, dueBalance: c.dueBalance - amount } : c
-            ));
-            
-            toast.dismiss();
-            toast.success("Payment received successfully!");
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        toast.error("Failed to load data.");
+      } finally {
+        setDataLoading(false);
+      }
+    };
+    fetchData();
+  }, [currentUser]);
 
-        } catch (error) {
-            toast.dismiss();
-            console.error("Error receiving payment:", error);
-            toast.error("Failed to process payment.");
-        }
-    }, [currentUser]);
+  const handleAddProduct = useCallback(async (productToAdd) => {
+    if (!currentUser) return;
+    try {
+      const docRef = await addDoc(collection(db, `users/${currentUser.uid}/products`), productToAdd);
+      setProducts(prev => [...prev, { id: docRef.id, ...productToAdd }]);
+      toast.success("Product added successfully!");
+    } catch (error) { toast.error("Failed to add product."); }
+  }, [currentUser]);
 
-  // Product Functions
-  const handleAddProduct = useCallback(async (productToAdd) => { /* ... (Pehle jaisa hi) ... */ }, [currentUser]);
-  const handleUpdateProduct = useCallback(async (updatedProduct) => { /* ... (Pehle jaisa hi) ... */ }, [currentUser]);
-  const handleDeleteProduct = useCallback(async (productId) => { /* ... (Pehle jaisa hi) ... */ }, [currentUser]);
+  const handleUpdateProduct = useCallback(async (updatedProduct) => {
+    if (!currentUser) return;
+    const { id, ...productData } = updatedProduct;
+    if (!id) { toast.error("Product ID is missing. Cannot update."); return; }
+    try {
+      await updateDoc(doc(db, `users/${currentUser.uid}/products`, id), productData);
+      setProducts(prev => prev.map(p => (p.id === id ? updatedProduct : p)));
+      toast.success("Product updated successfully!");
+    } catch (error) { toast.error("Failed to update product."); }
+  }, [currentUser]);
 
-  // Customer Functions
+  const handleDeleteProduct = useCallback(async (productId) => {
+    if (!currentUser) return;
+    try {
+      await deleteDoc(doc(db, `users/${currentUser.uid}/products`, productId));
+      setProducts(prev => prev.filter(p => p.id !== productId));
+      toast.success("Product deleted successfully!");
+    } catch (error) { toast.error("Failed to delete product."); }
+  }, [currentUser]);
+
   const handleAddCustomer = useCallback(async (customerToAdd) => {
     if (!currentUser) return;
     try {
@@ -105,12 +111,10 @@ function MainApp() {
     } catch (error) { toast.error("Failed to delete customer."); }
   }, [currentUser]);
   
-  // Sale and Payment Functions
   const handleProcessSale = useCallback(async (saleData) => {
     if (!currentUser) return;
     const { saleRecord, customerId } = saleData;
     let saleToSave = { ...saleRecord };
-  
     try {
       if (customerId !== 'walk-in') {
         const customer = customers.find(c => c.id === customerId);
@@ -119,7 +123,7 @@ function MainApp() {
           saleToSave.customerName = customer.name;
         }
         const dueAmount = saleRecord.totalAmount - saleRecord.amountPaid;
-        if (dueAmount > 0) {
+        if (dueAmount >= 0) { // Should be >= to handle full payments on credit customers
           const customerDocRef = doc(db, `users/${currentUser.uid}/customers`, customerId);
           await updateDoc(customerDocRef, { dueBalance: increment(dueAmount) });
           setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, dueBalance: c.dueBalance + dueAmount } : c));
@@ -131,18 +135,57 @@ function MainApp() {
     } catch (error) { toast.error("Failed to record sale."); }
   }, [currentUser, customers]);
 
-  const handleReceivePayment = useCallback(async (customerId, amount) => {
-    if (!currentUser) return;
+  const handleReceivePayment = useCallback(async (customer, amount) => {
+    if (!currentUser || !customer || !amount) return;
+    toast.loading("Processing payment...");
     try {
-        const customerDocRef = doc(db, `users/${currentUser.uid}/customers`, customerId);
-        await updateDoc(customerDocRef, { dueBalance: increment(-amount) });
-        setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, dueBalance: c.dueBalance - amount } : c));
-        toast.success("Payment received successfully!");
-    } catch (error) { toast.error("Failed to process payment."); }
+      const customerDocRef = doc(db, `users/${currentUser.uid}/customers`, customer.id);
+      await updateDoc(customerDocRef, { dueBalance: increment(-amount) });
+      const paymentRecord = {
+        items: [{name: "Dues Cleared", quantity: 1, price: amount, buyPrice: amount}],
+        totalAmount: amount, amountPaid: amount, totalProfit: 0, 
+        date: new Date().toISOString(), paymentType: 'Cash', change: 0,
+        customerId: customer.id, customerName: customer.name,
+      };
+      await addDoc(collection(db, `users/${currentUser.uid}/sales`), paymentRecord);
+      const salesSnapshot = await getDocs(collection(db, `users/${currentUser.uid}/sales`));
+      setSalesHistory(salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, dueBalance: c.dueBalance - amount } : c));
+      toast.dismiss();
+      toast.success("Payment received successfully!");
+    } catch (error) {
+      toast.dismiss();
+      console.error("Error receiving payment:", error);
+      toast.error("Failed to process payment.");
+    }
   }, [currentUser]);
 
-  // Settings Function
-  const handleClearAllData = useCallback(async () => { /* ... (Pehle jaisa hi) ... */ }, [currentUser]);
+  const handleClearAllData = useCallback(async () => {
+    if (!currentUser) return;
+    const confirmationText = "DELETE";
+    const userInput = prompt(`This will delete ALL data. Type "${confirmationText}" to confirm.`);
+    if (userInput !== confirmationText) {
+      if (userInput !== null) { toast.error("Confirmation text did not match."); }
+      return;
+    }
+    toast.loading("Clearing all data...");
+    try {
+      const batch = writeBatch(db);
+      const collectionsToDelete = ['products', 'sales', 'customers'];
+      for (const coll of collectionsToDelete) {
+        const snapshot = await getDocs(collection(db, `users/${currentUser.uid}/${coll}`));
+        snapshot.forEach(document => batch.delete(document.ref));
+      }
+      await batch.commit();
+      toast.dismiss();
+      toast.success("All data has been cleared.");
+      setProducts([]); setSalesHistory([]); setCustomers([]);
+    } catch (error) {
+      toast.dismiss();
+      console.error("Error clearing all data:", error);
+      toast.error("Failed to clear data.");
+    }
+  }, [currentUser]);
 
   if (dataLoading) return <LoadingSpinner />;
 
@@ -151,25 +194,9 @@ function MainApp() {
       <Header activeTab={activeTab} setActiveTab={setActiveTab} />
       <main className="flex-grow animate-fade-in-up" key={activeTab}>
         {activeTab === 'dashboard' && <Dashboard products={products} salesHistory={salesHistory} />}
-        {activeTab === 'pos' && 
-          <POS 
-            products={products}
-            customers={customers}
-            onProcessSale={handleProcessSale}
-            cart={cart}
-            setCart={setCart}
-          />
-        }
+        {activeTab === 'pos' && <POS products={products} customers={customers} onProcessSale={handleProcessSale} cart={cart} setCart={setCart} />}
         {activeTab === 'inventory' && <Inventory products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} />}
-        {activeTab === 'customers' && 
-          <Customers 
-            customers={customers}
-            onAddCustomer={handleAddCustomer}
-            onUpdateCustomer={handleUpdateCustomer}
-            onDeleteCustomer={handleDeleteCustomer}
-            onReceivePayment={handleReceivePayment}
-          />
-        }
+        {activeTab === 'customers' && <Customers customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onReceivePayment={handleReceivePayment} />}
         {activeTab === 'sales report' && <SalesReport salesHistory={salesHistory} />}
         {activeTab === 'settings' && <Settings onClearData={handleClearAllData} />}
       </main>
