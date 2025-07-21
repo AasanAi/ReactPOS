@@ -1,7 +1,29 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import DarkModeToggle from './DarkModeToggle'; // Agar DarkModeToggle alag file mein hai
+import { FiMoon, FiSun } from 'react-icons/fi'; // Dark mode ke liye icons
+import { useEffect } from 'react';
+
+// Yeh DarkModeToggle component sirf is file ke andar rakha gaya hai
+function DarkModeToggle() {
+  const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
+  return (
+    <button onClick={() => setIsDarkMode(prev => !prev)} className="text-gray-600 dark:text-gray-300 hover:text-teal-500 dark:hover:text-teal-400 transition-colors">
+      {isDarkMode ? <FiSun size={22} /> : <FiMoon size={22} />}
+    </button>
+  );
+}
+
 
 function Login() {
   const [isLoginView, setIsLoginView] = useState(true);
@@ -30,7 +52,6 @@ function Login() {
         await signup(email, password);
         toast.success('Account created successfully!');
       }
-      // window.location.reload(); // Iski zaroorat nahi, context isko handle kar lega
     } catch (error) {
       toast.error(error.message || 'Failed to process request.');
     } finally {
@@ -54,12 +75,11 @@ function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
       <div className="absolute top-4 right-4">
-        {/* Agar DarkModeToggle alag file mein hai, to yeh line rakhein, warna hata dein */}
-        {/* <DarkModeToggle /> */}
+        <DarkModeToggle />
       </div>
       <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
         <h2 className="text-3xl font-bold text-center text-gray-800 dark:text-white">
-          {isLoginView ? 'Welcome Back!' : 'Create an Account'}
+          {isLoginView ? 'Welcome to Aasan POS' : 'Create an Account'}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -67,12 +87,14 @@ function Login() {
             <input type="email" ref={emailRef} required className="w-full p-2 mt-1 bg-gray-100 dark:bg-gray-700 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-teal-500 focus:ring-teal-500" />
           </div>
           <div>
-            <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Password</oabel>
+            {/* --- YAHAN GALTI THEEK KAR DI GAYI HAI --- */}
+            <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Password</label>
             <input type="password" ref={passwordRef} required className="w-full p-2 mt-1 bg-gray-100 dark:bg-gray-700 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-teal-500 focus:ring-teal-500" />
           </div>
           {!isLoginView && (
             <div>
-              <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Confirm Password</oabel>
+              {/* --- YAHAN BHI GALTI THEEK KAR DI GAYI HAI --- */}
+              <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Confirm Password</label>
               <input type="password" ref={passwordConfirmRef} required className="w-full p-2 mt-1 bg-gray-100 dark:bg-gray-700 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-teal-500 focus:ring-teal-500" />
             </div>
           )}
