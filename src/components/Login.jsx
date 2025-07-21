@@ -1,73 +1,99 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import DarkModeToggle from './DarkModeToggle'; // Agar DarkModeToggle alag file mein hai
 
 function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [isSigningUp, setIsSigningUp] = useState(false);
+  const [isLoginView, setIsLoginView] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const emailRef = useRef();
+  const passwordRef = useRef();
+  const passwordConfirmRef = useRef();
   const { signup, login, resetPassword } = useAuth();
 
-  const handleAuth = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isSigningUp && password !== confirmPassword) {
-      return toast.error("Passwords do not match!");
-    }
+    setLoading(true);
+    
+    const email = emailRef.current.value;
+    const password = passwordRef.current.value;
+
     try {
-      if (isSigningUp) {
-        await signup(email, password);
-        toast.success('Account created! Please log in.');
-        setIsSigningUp(false);
-      } else {
+      if (isLoginView) {
         await login(email, password);
         toast.success('Logged in successfully!');
+      } else {
+        const passwordConfirm = passwordConfirmRef.current.value;
+        if (password !== passwordConfirm) {
+          throw new Error("Passwords do not match");
+        }
+        await signup(email, password);
+        toast.success('Account created successfully!');
       }
+      // window.location.reload(); // Iski zaroorat nahi, context isko handle kar lega
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.message || 'Failed to process request.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleForgotPassword = async () => {
+  const handlePasswordReset = async () => {
+    const email = emailRef.current.value;
     if (!email) {
-      return toast.error("Please enter your email address.");
+      return toast.error("Please enter your email to reset password.");
     }
     try {
       await resetPassword(email);
-      toast.success("If an account exists, a password reset link has been sent.");
+      toast.success("Password reset link sent! Check your inbox.");
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.message || "Failed to send reset link.");
     }
   };
-  
+
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-        <h1 className="text-3xl font-bold text-center text-teal-600 dark:text-teal-400">Aasan POS</h1>
-        <h2 className="text-xl font-bold text-center text-gray-700 dark:text-gray-200">{isSigningUp ? 'Create a New Account' : 'Welcome Back!'}</h2>
-        <form onSubmit={handleAuth} className="space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="absolute top-4 right-4">
+        {/* Agar DarkModeToggle alag file mein hai, to yeh line rakhein, warna hata dein */}
+        {/* <DarkModeToggle /> */}
+      </div>
+      <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
+        <h2 className="text-3xl font-bold text-center text-gray-800 dark:text-white">
+          {isLoginView ? 'Welcome Back!' : 'Create an Account'}
+        </h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="email" className="text-sm font-bold text-gray-600 dark:text-gray-300 block">Email</label>
-            <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-2 mt-1 text-gray-800 bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500" required />
+            <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Email</label>
+            <input type="email" ref={emailRef} required className="w-full p-2 mt-1 bg-gray-100 dark:bg-gray-700 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-teal-500 focus:ring-teal-500" />
           </div>
           <div>
-            <label htmlFor="password"className="text-sm font-bold text-gray-600 dark:text-gray-300 block">Password</label>
-            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-2 mt-1 text-gray-800 bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500" required />
+            <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Password</oabel>
+            <input type="password" ref={passwordRef} required className="w-full p-2 mt-1 bg-gray-100 dark:bg-gray-700 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-teal-500 focus:ring-teal-500" />
           </div>
-          {isSigningUp && (
+          {!isLoginView && (
             <div>
-              <label htmlFor="confirmPassword"className="text-sm font-bold text-gray-600 dark:text-gray-300 block">Confirm Password</label>
-              <input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full p-2 mt-1 text-gray-800 bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500" required />
+              <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Confirm Password</oabel>
+              <input type="password" ref={passwordConfirmRef} required className="w-full p-2 mt-1 bg-gray-100 dark:bg-gray-700 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-teal-500 focus:ring-teal-500" />
             </div>
           )}
-          <div><button type="submit" className="w-full py-2 px-4 text-white bg-teal-600 rounded-md hover:bg-teal-700 font-semibold">{isSigningUp ? 'Sign Up' : 'Log In'}</button></div>
+          <button type="submit" disabled={loading} className="w-full py-2 px-4 bg-teal-600 hover:bg-teal-700 rounded-md text-white text-lg font-semibold transition-colors disabled:bg-teal-400">
+            {loading ? 'Processing...' : (isLoginView ? 'Log In' : 'Sign Up')}
+          </button>
         </form>
-        <div className="flex justify-between items-center text-sm">
-          {!isSigningUp && (<button onClick={handleForgotPassword} className="text-blue-600 dark:text-blue-400 hover:underline">Forgot Password?</button>)}
-          <button onClick={() => setIsSigningUp(!isSigningUp)} className={`text-blue-600 dark:text-blue-400 hover:underline ${isSigningUp ? 'w-full text-center' : ''}`}>{isSigningUp ? 'Already have an account? Log In' : "Don't have an account? Sign Up"}</button>
+        <div className="text-center">
+          <button onClick={handlePasswordReset} className="text-sm text-teal-600 hover:underline dark:text-teal-400">
+            Forgot Password?
+          </button>
         </div>
+        <p className="text-center text-sm text-gray-600 dark:text-gray-300">
+          {isLoginView ? "Don't have an account?" : 'Already have an account?'}
+          <button onClick={() => setIsLoginView(!isLoginView)} className="ml-1 text-teal-600 hover:underline dark:text-teal-400 font-semibold">
+            {isLoginView ? 'Sign Up' : 'Log In'}
+          </button>
+        </p>
       </div>
     </div>
   );
 }
+
 export default Login;
