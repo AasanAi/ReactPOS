@@ -1,13 +1,10 @@
-import React, { useState, useEffect } from 'react'; // useEffect ko import karein
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { FiLogOut, FiMoon, FiSun } from 'react-icons/fi';
+import { FiLogOut, FiMoon, FiSun, FiMenu, FiX } from 'react-icons/fi'; // Menu aur Close icons import karein
 
-// --- YEH NAYA, MUKAMMAL DARK MODE COMPONENT HAI ---
-// Isko alag file ki zaroorat nahi
+// Dark Mode Toggle Component
 function DarkModeToggle() {
-  // Check localStorage for the saved theme
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
-
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -18,20 +15,18 @@ function DarkModeToggle() {
     }
   }, [isDarkMode]);
 
-  const toggleDarkMode = () => {
-    setIsDarkMode(prevMode => !prevMode);
-  };
-
   return (
-    <button onClick={toggleDarkMode} className="text-gray-600 dark:text-gray-300 hover:text-teal-500 dark:hover:text-teal-400 transition-colors">
+    <button onClick={() => setIsDarkMode(prev => !prev)} className="text-gray-600 dark:text-gray-300 hover:text-teal-500 dark:hover:text-teal-400 transition-colors">
       {isDarkMode ? <FiSun size={22} /> : <FiMoon size={22} />}
     </button>
   );
 }
 
-
+// Main Header Component
 function Header({ activeTab, setActiveTab }) {
   const { logout } = useAuth();
+  // Naya state, mobile menu ko kholne/band karne ke liye
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const tabs = ['dashboard', 'pos', 'inventory', 'customers', 'sales report', 'settings'];
 
@@ -43,34 +38,85 @@ function Header({ activeTab, setActiveTab }) {
     }
   };
 
+  const handleTabClick = (tab) => {
+    setActiveTab(tab);
+    setIsMenuOpen(false); // Tab par click karne se menu band ho jaye
+  };
+
   return (
-    <header className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-10">
-      <div className="container mx-auto px-6 py-3 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-teal-600 dark:text-teal-400">Aasan POS</h1>
-        <div className="hidden md:flex space-x-4">
+    <>
+      <header className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-20">
+        <div className="container mx-auto px-4 sm:px-6 py-3 flex justify-between items-center">
+          <h1 className="text-xl font-bold text-teal-600 dark:text-teal-400">Aasan POS</h1>
+          
+          {/* --- DESKTOP MENU (Badi screens par dikhega) --- */}
+          <div className="hidden md:flex space-x-2">
+            {tabs.map(tab => (
+              <button
+                key={tab}
+                onClick={() => handleTabClick(tab)}
+                className={`capitalize px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  activeTab === tab 
+                  ? 'bg-teal-600 text-white shadow-sm' 
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <DarkModeToggle />
+            <button onClick={handleLogout} className="text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 transition-colors">
+              <FiLogOut size={22} />
+            </button>
+            {/* --- HAMBURGER ICON (Choti screens par dikhega) --- */}
+            <button onClick={() => setIsMenuOpen(true)} className="md:hidden text-gray-600 dark:text-gray-300">
+              <FiMenu size={24} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* --- MOBILE SIDEBAR MENU --- */}
+      {/* Overlay (Menu ke peeche ka dark background) */}
+      <div 
+        className={`fixed inset-0 bg-black bg-opacity-50 z-30 transition-opacity duration-300 ${
+          isMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setIsMenuOpen(false)}
+      ></div>
+      
+      {/* Sidebar */}
+      <div 
+        className={`fixed top-0 left-0 h-full w-64 bg-white dark:bg-gray-800 shadow-xl z-40 transform transition-transform duration-300 ease-in-out ${
+          isMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-bold text-teal-600 dark:text-teal-400">Menu</h2>
+          <button onClick={() => setIsMenuOpen(false)} className="text-gray-600 dark:text-gray-300">
+            <FiX size={24} />
+          </button>
+        </div>
+        <nav className="p-4 flex flex-col space-y-2">
           {tabs.map(tab => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`capitalize px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              onClick={() => handleTabClick(tab)}
+              className={`w-full text-left capitalize px-3 py-2 font-medium rounded-md transition-colors ${
                 activeTab === tab 
-                ? 'bg-teal-600 text-white shadow-sm' 
-                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                ? 'bg-teal-600 text-white' 
+                : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
             >
               {tab}
             </button>
           ))}
-        </div>
-        <div className="flex items-center space-x-4">
-          {/* Ab yeh component bilkul theek kaam karega */}
-          <DarkModeToggle /> 
-          <button onClick={handleLogout} className="text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 transition-colors">
-            <FiLogOut size={22} />
-          </button>
-        </div>
+        </nav>
       </div>
-    </header>
+    </>
   );
 }
 
