@@ -3,6 +3,9 @@ import toast from 'react-hot-toast';
 import Modal from 'react-modal';
 
 function Customers({ customers, onAddCustomer, onUpdateCustomer, onDeleteCustomer, onReceivePayment }) {
+  // --- NAYA STATE SEARCH KE LIYE ---
+  const [searchTerm, setSearchTerm] = useState("");
+
   const [newCustomer, setNewCustomer] = useState({ name: "", phone: "", address: "" });
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -60,10 +63,15 @@ function Customers({ customers, onAddCustomer, onUpdateCustomer, onDeleteCustome
       toast.error("Amount cannot be greater than the due balance.");
       return;
     }
-    // Ab hum poora customer object aur amount bhejenge.
     onReceivePayment(payingCustomer, amount);
     closePaymentModal();
   };
+
+  // --- NAYI FILTERING LOGIC ---
+  const filteredCustomers = (customers || []).filter(customer =>
+    (customer.name && customer.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (customer.phone && customer.phone.includes(searchTerm))
+  );
 
   return (
     <div className="container mx-auto px-6 py-8">
@@ -73,31 +81,25 @@ function Customers({ customers, onAddCustomer, onUpdateCustomer, onDeleteCustome
             {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
           </h3>
           <div className="space-y-4">
-            <div>
-              <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Customer Name</label>
-              <input id="customerName" type="text" value={newCustomer.name} onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-            </div>
-            <div>
-              <label htmlFor="customerPhone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone Number</label>
-              <input id="customerPhone" type="text" value={newCustomer.phone} onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-            </div>
-            <div>
-              <label htmlFor="customerAddress" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Address (Optional)</label>
-              <input id="customerAddress" type="text" value={newCustomer.address} onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-            </div>
+            <div><label htmlFor="customerName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Customer Name</label><input id="customerName" type="text" value={newCustomer.name} onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" /></div>
+            <div><label htmlFor="customerPhone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone Number</label><input id="customerPhone" type="text" value={newCustomer.phone} onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" /></div>
+            <div><label htmlFor="customerAddress" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Address (Optional)</label><input id="customerAddress" type="text" value={newCustomer.address} onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" /></div>
           </div>
-          <div className="flex space-x-2 mt-6">
-            <button onClick={handleFormSubmit} className="w-full bg-teal-600 text-white py-2 rounded-lg font-semibold hover:bg-teal-700 transition-colors shadow-md hover:shadow-lg">
-              {editingCustomer ? 'Update Customer' : 'Add Customer'}
-            </button>
-            {editingCustomer && (
-              <button onClick={handleCancelEdit} className="w-full bg-gray-500 text-white py-2 rounded-lg font-semibold hover:bg-gray-600 transition-colors">Cancel</button>
-            )}
-          </div>
+          <div className="flex space-x-2 mt-6"><button onClick={handleFormSubmit} className="w-full bg-teal-600 text-white py-2 rounded-lg font-semibold hover:bg-teal-700 transition-colors shadow-md hover:shadow-lg">{editingCustomer ? 'Update Customer' : 'Add Customer'}</button>{editingCustomer && (<button onClick={handleCancelEdit} className="w-full bg-gray-500 text-white py-2 rounded-lg font-semibold hover:bg-gray-600 transition-colors">Cancel</button>)}</div>
         </div>
 
         <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
           <h3 className="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">Customer List</h3>
+          
+          {/* --- NAYA SEARCH BAR --- */}
+          <input
+            type="text"
+            placeholder="Search by name or phone..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
+
           <div className="overflow-x-auto max-h-[60vh]">
             <table className="min-w-full table-auto text-sm">
               <thead className="bg-gray-100 dark:bg-gray-700 sticky top-0">
@@ -109,18 +111,27 @@ function Customers({ customers, onAddCustomer, onUpdateCustomer, onDeleteCustome
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {customers && customers.map((customer) => (
-                  <tr key={customer.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <td className="px-4 py-3 text-gray-800 dark:text-gray-100">{customer.name}</td>
-                    <td className="px-4 py-3 dark:text-gray-300">{customer.phone}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">PKR {customer.dueBalance.toFixed(2)}</td>
-                    <td className="px-4 py-3 space-x-2 text-center">
-                      <button onClick={() => openPaymentModal(customer)} className="bg-green-500 text-white px-3 py-1 rounded-md text-xs hover:bg-green-600 transition-colors">Payment</button>
-                      <button onClick={() => handleEditClick(customer)} className="bg-blue-500 text-white px-3 py-1 rounded-md text-xs hover:bg-blue-600 transition-colors">Edit</button>
-                      <button onClick={() => handleDeleteClick(customer.id)} className="bg-red-500 text-white px-3 py-1 rounded-md text-xs hover:bg-red-600 transition-colors">Delete</button>
+                {/* --- Ab 'filteredCustomers' ko map karein --- */}
+                {filteredCustomers.length > 0 ? (
+                  filteredCustomers.map((customer) => (
+                    <tr key={customer.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <td className="px-4 py-3 text-gray-800 dark:text-gray-100">{customer.name}</td>
+                      <td className="px-4 py-3 dark:text-gray-300">{customer.phone}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-red-500 dark:text-red-400">PKR {customer.dueBalance.toFixed(2)}</td>
+                      <td className="px-4 py-3 space-x-2 text-center">
+                        <button onClick={() => openPaymentModal(customer)} className="bg-green-500 text-white px-3 py-1 rounded-md text-xs hover:bg-green-600 transition-colors">Payment</button>
+                        <button onClick={() => handleEditClick(customer)} className="bg-blue-500 text-white px-3 py-1 rounded-md text-xs hover:bg-blue-600 transition-colors">Edit</button>
+                        <button onClick={() => handleDeleteClick(customer.id)} className="bg-red-500 text-white px-3 py-1 rounded-md text-xs hover:bg-red-600 transition-colors">Delete</button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="text-center py-10 text-gray-500 dark:text-gray-400">
+                      No customers found matching your search.
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -139,7 +150,6 @@ function Customers({ customers, onAddCustomer, onUpdateCustomer, onDeleteCustome
             <h2 className="text-2xl font-bold mb-4 dark:text-gray-100">Receive Payment</h2>
             <p className="dark:text-gray-300 mb-1">Customer: <span className="font-semibold">{payingCustomer.name}</span></p>
             <p className="dark:text-gray-300 mb-4">Current Due: <span className="font-bold text-red-500">PKR {payingCustomer.dueBalance.toFixed(2)}</span></p>
-            
             <label htmlFor="paymentAmount" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Amount Received</label>
             <input 
               type="number" 
@@ -149,7 +159,6 @@ function Customers({ customers, onAddCustomer, onUpdateCustomer, onDeleteCustome
               className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
               autoFocus 
             />
-            
             <div className="flex justify-end space-x-2 mt-6">
               <button onClick={closePaymentModal} className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">Cancel</button>
               <button onClick={handleReceivePayment} className="bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600">Confirm Payment</button>
