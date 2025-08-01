@@ -224,13 +224,24 @@ function MainApp() {
   const handleAddProduct = useCallback(async (productToAdd) => { /* ... */ }, [shopOwnerId]);
   const handleUpdateProduct = useCallback(async (updatedProduct) => { /* ... */ }, [shopOwnerId]);
   const handleDeleteProduct = useCallback(async (productId) => { /* ... */ }, [shopOwnerId]);
-  const handleAddCustomer = useCallback(async (customerToAdd) => { /* ... */ }, [shopOwnerId]);
-  const handleUpdateCustomer = useCallback(async (updatedCustomer) => { /* ... */ }, [shopOwnerId]);
-  const handleDeleteCustomer = useCallback(async (customerId) => { /* ... */ }, [shopOwnerId]);
-  const handleReceivePayment = useCallback(async (customer, amount) => { /* ... */ }, [shopOwnerId, currentUser]);
-  const handleResetPassword = useCallback(async (email) => { /* ... */ }, []);
-  const handleToggleUserStatus = useCallback(async (userToToggle) => { /* ... */ }, []);
-  const handleClearAllData = useCallback(async () => { /* ... */ }, [shopOwnerId]);
+  const handleAddCustomer = useCallback(async (customerToAdd) => {
+    if (!shopOwnerId) return;
+    
+    console.log("2. App.jsx received request to add customer:", customerToAdd);
+    console.log("   Saving to path:", `users/${shopOwnerId}/customers`);
+    
+    try {
+      const docRef = await addDoc(collection(db, `users/${shopOwnerId}/customers`), customerToAdd);
+      
+      console.log("3. SUCCESS! Customer added to Firestore with ID:", docRef.id);
+      
+      setCustomers(prev => [...prev, { id: docRef.id, ...customerToAdd }]);
+      toast.success("Customer added successfully!");
+    } catch (error) {
+      console.error("3. ERROR! Failed to add customer to Firestore:", error);
+      toast.error("Failed to add customer.");
+    }
+  }, [shopOwnerId]);
 
   if (dataIsLoading) return <LoadingSpinner />;
 

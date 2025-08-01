@@ -17,14 +17,15 @@ function Customers({ customers, onAddCustomer, onUpdateCustomer, onDeleteCustome
       toast.error("Customer Name and Phone are required!");
       return;
     }
+
+    // --- YEH NAYA DEBUGGING CODE HAI ---
+    console.log("1. Add Customer button clicked! Data to be sent:", newCustomer);
+
     if (editingCustomer) {
       onUpdateCustomer(newCustomer);
     } else {
       onAddCustomer({ ...newCustomer, dueBalance: 0 });
     }
-    setNewCustomer({ name: "", phone: "", address: "" });
-    setEditingCustomer(null);
-  };
 
   const handleEditClick = (customerToEdit) => {
     setEditingCustomer(customerToEdit);
