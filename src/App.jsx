@@ -2,8 +2,12 @@ import React, { useState, useEffect, useCallback } from "react";
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
 import { db, auth } from './firebase.js';
-import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, writeBatch, increment, query, where } from "firebase/firestore";
+import {
+  collection, getDocs, addDoc, doc, updateDoc, deleteDoc, writeBatch, increment, query, where
+} from "firebase/firestore";
 import { sendPasswordResetEmail } from "firebase/auth";
+
+// Components
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import POS from './components/POS';
@@ -63,17 +67,22 @@ function MainApp() {
   const handleUpdateProduct = useCallback(async (updatedProduct) => { if (!shopOwnerId) return; const { id, ...productData } = updatedProduct; if (!id) { toast.error("Product ID is missing."); return; } try { await updateDoc(doc(db, `users/${shopOwnerId}/products`, id), productData); setProducts(prev => prev.map(p => (p.id === id ? updatedProduct : p))); toast.success("Product updated successfully!"); } catch (error) { toast.error("Failed to update product."); } }, [shopOwnerId]);
   const handleDeleteProduct = useCallback(async (productId) => { if (!shopOwnerId) return; try { await deleteDoc(doc(db, `users/${shopOwnerId}/products`, productId)); setProducts(prev => prev.filter(p => p.id !== productId)); toast.success("Product deleted successfully!"); } catch (error) { toast.error("Failed to delete product."); } }, [shopOwnerId]);
 
+  // --- YEH FUNCTION MUKAMMAL TAUR PAR THEEK KIYA GAYA HAI ---
   const handleAddCustomer = useCallback(async (customerToAdd) => {
     if (!shopOwnerId) return;
-    console.log("2. App.jsx received request to add customer:", customerToAdd);
-    console.log("   Saving to path:", `users/${shopOwnerId}/customers`);
+    const toastId = toast.loading("Adding customer...");
     try {
+      // Step 1: Naye customer ko Firestore mein add karo
       const docRef = await addDoc(collection(db, `users/${shopOwnerId}/customers`), customerToAdd);
-      console.log("3. SUCCESS! Customer added to Firestore with ID:", docRef.id);
-      setCustomers(prev => [...prev, { id: docRef.id, ...customerToAdd }]);
+      
+      // Step 2: Foran apni local state (mobile ki photo) ko update karo
+      setCustomers(prevCustomers => [...prevCustomers, { id: docRef.id, ...customerToAdd }]);
+      
+      toast.dismiss(toastId);
       toast.success("Customer added successfully!");
     } catch (error) {
-      console.error("3. ERROR! Failed to add customer to Firestore:", error);
+      toast.dismiss(toastId);
+      console.error("Failed to add customer to Firestore:", error);
       toast.error("Failed to add customer.");
     }
   }, [shopOwnerId]);
