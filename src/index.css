@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-track {
+  background: #2d3748;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #718096;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+
+/* --- YEH NAYA, SABSE ZAROORI "SMART PRINT" CODE HAI --- */
+@media print {
+  /* Print ke waqt, page par sab kuch chupa do */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Sirf "printable-receipt" class wali cheez aur uske andar ki cheezon ko dikhao */
+  .printable-receipt, .printable-receipt * {
+    visibility: visible;
+  }
+  
+  /* "printable-receipt" ko page ke bilkul shuru mein le aao */
+  .printable-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%; /* Take full width to avoid weird scaling */
+  }
+  
+  /* Browser ke default headers/footers (URL, date, etc.) hatao */
+  @page {
+    size: auto;
+    margin: 5mm; /* Page ke kinaron par chota sa margin rakhein */
+  }
+}
