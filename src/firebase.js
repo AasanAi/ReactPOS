@@ -1,30 +1,21 @@
+// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
-// --- YEH NAYA, HARDCODED CONFIGURATION HAI ---
-// Ismein process.env istemal nahi ho raha.
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "YAHAN_APNI_NAYI_API_KEY_DAALEIN",             // <-- quotes ke andar
-  authDomain: "aasan-pos.firebaseapp.com",     
-  projectId: "aasan-pos",                      
-  storageBucket: "aasan-pos.appspot.com",      
-  messagingSenderId: "872296255660",           
-  appId: "YAHAN_APNA_NAYA_APP_ID_DAALEIN",               // <-- quotes ke andar
-  measurementId: "YAHAN_APNA_MEASUREMENT_ID_DAALEIN"   // <-- quotes ke andar
+  apiKey: "AIzaSyB2PyIPcxBLd0TvFN1hAkIHqSN1SrvUBc0",
+  authDomain: "aasan-pos.firebaseapp.com",
+  projectId: "aasan-pos",
+  storageBucket: "aasan-pos.firebasestorage.app",
+  messagingSenderId: "872296255660",
+  appId: "1:872296255660:web:e734f07a02057f3adacf09",
+  measurementId: "G-B9QG72HW2X"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-
-// Offline data ke liye
-enableIndexedDbPersistence(db)
-  .catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn("Firestore persistence failed: Multiple tabs open.");
-    } else if (err.code === 'unimplemented') {
-      console.warn("Firestore persistence not available in this browser.");
-    }
-  });
+const analytics = getAnalytics(app);
