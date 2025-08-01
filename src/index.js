@@ -13,4 +13,5 @@ root.render(
     </AuthProvider>
   </React.StrictMode>
 );
+
 serviceWorkerRegistration.register();
