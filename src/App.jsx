@@ -2,12 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
 import { db, auth } from './firebase.js';
-import {
-  collection, getDocs, addDoc, doc, updateDoc, deleteDoc, writeBatch, increment, query, where
-} from "firebase/firestore";
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, writeBatch, increment, query, where } from "firebase/firestore";
 import { sendPasswordResetEmail } from "firebase/auth";
-
-// Components
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import POS from './components/POS';
@@ -19,117 +15,20 @@ import Footer from './components/Footer';
 import Login from './components/Login';
 import LoadingSpinner from "./components/LoadingSpinner";
 import { FiLogOut } from "react-icons/fi";
-import { syncOfflineSales } from './utils/offlineSales';
 
 function MainApp() {
   const { currentUser, userRole, shopOwnerId, logout } = useAuth();
   const [activeTab, setActiveTab] = useState(userRole === 'admin' ? "dashboard" : "pos");
-
   const [products, setProducts] = useState(null);
   const [salesHistory, setSalesHistory] = useState(null);
   const [customers, setCustomers] = useState(null);
   const [allUsers, setAllUsers] = useState([]);
   const [cart, setCart] = useState([]);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
   
   const dataIsLoading = products === null || salesHistory === null || customers === null;
 
-  const syncOfflineSales = useCallback(async () => {
-    if (!shopOwnerId || !navigator.onLine || !products || !customers) return;
-
-    const pendingSalesKey = `pendingSales_${shopOwnerId}`;
-    const pendingSales = JSON.parse(localStorage.getItem(pendingSalesKey)) || [];
-
-    if (pendingSales.length === 0) return;
-
-    const toastId = toast.loading(`Syncing ${pendingSales.length} offline sale(s)...`);
-    let successCount = 0;
-    const failedSales = [];
-
-    for (const saleData of pendingSales) {
-        try {
-            const { saleRecord, customerId } = saleData;
-            const batch = writeBatch(db);
-            
-            saleRecord.items.forEach(item => {
-                const productInDB = products.find(p => p.barcode === item.barcode);
-                if (productInDB) {
-                    const productRef = doc(db, `users/${shopOwnerId}/products`, productInDB.id);
-                    batch.update(productRef, { quantity: increment(-item.quantity) });
-                }
-            });
-
-            if (customerId !== 'walk-in') {
-                const customer = customers.find(c => c.id === customerId);
-                if (customer) {
-                    const cartTotal = saleRecord.totalAmount;
-                    const previousDue = customer.dueBalance - (cartTotal - saleRecord.amountPaid); // Adjust for local update
-                    const grandTotal = cartTotal + previousDue;
-                    const newDue = grandTotal - saleRecord.amountPaid;
-                    const customerDocRef = doc(db, `users/${shopOwnerId}/customers`, customerId);
-                    batch.update(customerDocRef, { dueBalance: newDue });
-                }
-            }
-
-            const newSaleRef = doc(collection(db, `users/${shopOwnerId}/sales`));
-            batch.set(newSaleRef, { ...saleRecord, synced: true });
-            await batch.commit();
-            successCount++;
-        } catch (error) {
-            console.error("Failed to sync one sale:", error, saleData);
-            failedSales.push(saleData);
-        }
-    }
-    
-    localStorage.setItem(pendingSalesKey, JSON.stringify(failedSales));
-    
-    toast.dismiss(toastId);
-    if (successCount > 0) {
-        toast.success(`${successCount} sale(s) synced successfully! Reloading data.`);
-        // Data ko dobara fetch karein
-        const productsSnapshot = await getDocs(collection(db, `users/${shopOwnerId}/products`));
-        setProducts(productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        const salesSnapshot = await getDocs(collection(db, `users/${shopOwnerId}/sales`));
-        setSalesHistory(salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        const customersSnapshot = await getDocs(collection(db, `users/${shopOwnerId}/customers`));
-        setCustomers(customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }
-    if(failedSales.length > 0) {
-        toast.error(`${failedSales.length} sale(s) failed to sync. Please try again later.`);
-    }
-  }, [shopOwnerId, products, customers]);
-  
   useEffect(() => {
-  const handleOnline = () => {
-    setIsOnline(true);
-    toast.success("You are back online!", { icon: '✅' });
-    syncOfflineSales();
-  };
-
-  const handleOffline = () => {
-    setIsOnline(false);
-    toast.error("You are offline. Sales will be saved locally.", {
-      icon: '❌',
-      duration: 4000
-    });
-  };
-
-  window.addEventListener('online', handleOnline);
-  window.addEventListener('offline', handleOffline);
-
-  return () => {
-    window.removeEventListener('online', handleOnline);
-    window.removeEventListener('offline', handleOffline);
-  };
-}, [syncOfflineSales]);
-    
-  
-
-  useEffect(() => {
-    if (!shopOwnerId) {
-        setProducts([]); setSalesHistory([]); setCustomers([]); setAllUsers([]);
-        return;
-    };
+    if (!shopOwnerId) { setProducts([]); setSalesHistory([]); setCustomers([]); setAllUsers([]); return; };
     const fetchData = async () => {
       try {
         const productsPromise = getDocs(collection(db, `users/${shopOwnerId}/products`));
@@ -160,81 +59,17 @@ function MainApp() {
     else if (userRole === 'cashier') { setActiveTab('pos'); }
   }, [userRole, activeTab]);
 
-  const handleProcessSale = useCallback(async (saleData) => {
-    if (!shopOwnerId) return;
-    const { saleRecord, customerId } = saleData;
-    const saleWithMetadata = { ...saleRecord, cashierId: currentUser.uid, cashierEmail: currentUser.email };
-    
-    const updateLocalState = () => {
-        setSalesHistory(prev => [...prev, saleWithMetadata]);
-        saleRecord.items.forEach(item => {
-            setProducts(prev => prev.map(p => p.barcode === item.barcode ? { ...p, quantity: p.quantity - item.quantity } : p));
-        });
-        if (customerId !== 'walk-in') {
-            const customer = customers.find(c => c.id === customerId);
-            const cartTotal = saleRecord.totalAmount;
-            const newDue = (customer.dueBalance || 0) + cartTotal - saleRecord.amountPaid;
-            setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, dueBalance: newDue } : c));
-        }
-    };
-    
-    if (isOnline) {
-        const toastId = toast.loading("Processing online sale...");
-        try {
-            await syncOfflineSales();
-            const batch = writeBatch(db);
-            saleRecord.items.forEach(item => {
-                const productInDB = products.find(p => p.barcode === item.barcode);
-                if (productInDB) {
-                    batch.update(doc(db, `users/${shopOwnerId}/products`, productInDB.id), { quantity: increment(-item.quantity) });
-                }
-            });
-            if (customerId !== 'walk-in') {
-                const customer = customers.find(c => c.id === customerId);
-                const cartTotal = saleRecord.totalAmount;
-                const newDue = (customer.dueBalance || 0) + cartTotal - saleRecord.amountPaid;
-                batch.update(doc(db, `users/${shopOwnerId}/customers`, customerId), { dueBalance: newDue });
-            }
-            const newSaleRef = doc(collection(db, `users/${shopOwnerId}/sales`));
-            batch.set(newSaleRef, saleWithMetadata);
-            await batch.commit();
-            updateLocalState();
-            toast.dismiss(toastId);
-            toast.success("Sale recorded and stock updated!");
-        } catch (error) {
-            toast.dismiss(toastId);
-            toast.error("Online sale failed. Saving to offline queue.");
-            saveSaleOffline({ saleRecord: saleWithMetadata, customerId });
-        }
-    } else {
-        saveSaleOffline({ saleRecord: saleWithMetadata, customerId });
-    }
-    
-    function saveSaleOffline(offlineSaleData) {
-        toast.success("You are offline. Sale saved locally!", { duration: 4000 });
-        const pendingSalesKey = `pendingSales_${shopOwnerId}`;
-        const pendingSales = JSON.parse(localStorage.getItem(pendingSalesKey)) || [];
-        pendingSales.push(offlineSaleData);
-        localStorage.setItem(pendingSalesKey, JSON.stringify(pendingSales));
-        updateLocalState();
-    }
-  }, [shopOwnerId, products, customers, currentUser, isOnline, syncOfflineSales]);
-  
-  // Baaki saare functions bilkul waise hi rahenge
-  const handleAddProduct = useCallback(async (productToAdd) => { /* ... */ }, [shopOwnerId]);
-  const handleUpdateProduct = useCallback(async (updatedProduct) => { /* ... */ }, [shopOwnerId]);
-  const handleDeleteProduct = useCallback(async (productId) => { /* ... */ }, [shopOwnerId]);
+  const handleAddProduct = useCallback(async (productToAdd) => { if (!shopOwnerId) return; try { const docRef = await addDoc(collection(db, `users/${shopOwnerId}/products`), productToAdd); setProducts(prev => [...prev, { id: docRef.id, ...productToAdd }]); toast.success("Product added successfully!"); } catch (error) { toast.error("Failed to add product."); } }, [shopOwnerId]);
+  const handleUpdateProduct = useCallback(async (updatedProduct) => { if (!shopOwnerId) return; const { id, ...productData } = updatedProduct; if (!id) { toast.error("Product ID is missing."); return; } try { await updateDoc(doc(db, `users/${shopOwnerId}/products`, id), productData); setProducts(prev => prev.map(p => (p.id === id ? updatedProduct : p))); toast.success("Product updated successfully!"); } catch (error) { toast.error("Failed to update product."); } }, [shopOwnerId]);
+  const handleDeleteProduct = useCallback(async (productId) => { if (!shopOwnerId) return; try { await deleteDoc(doc(db, `users/${shopOwnerId}/products`, productId)); setProducts(prev => prev.filter(p => p.id !== productId)); toast.success("Product deleted successfully!"); } catch (error) { toast.error("Failed to delete product."); } }, [shopOwnerId]);
+
   const handleAddCustomer = useCallback(async (customerToAdd) => {
     if (!shopOwnerId) return;
-    
     console.log("2. App.jsx received request to add customer:", customerToAdd);
     console.log("   Saving to path:", `users/${shopOwnerId}/customers`);
-    
     try {
       const docRef = await addDoc(collection(db, `users/${shopOwnerId}/customers`), customerToAdd);
-      
       console.log("3. SUCCESS! Customer added to Firestore with ID:", docRef.id);
-      
       setCustomers(prev => [...prev, { id: docRef.id, ...customerToAdd }]);
       toast.success("Customer added successfully!");
     } catch (error) {
@@ -243,23 +78,19 @@ function MainApp() {
     }
   }, [shopOwnerId]);
 
+  const handleUpdateCustomer = useCallback(async (updatedCustomer) => { if (!shopOwnerId) return; const { id, ...customerData } = updatedCustomer; try { await updateDoc(doc(db, `users/${shopOwnerId}/customers`, id), customerData); setCustomers(prev => prev.map(c => c.id === id ? updatedCustomer : c)); toast.success("Customer updated successfully!"); } catch (error) { toast.error("Failed to update customer."); } }, [shopOwnerId]);
+  const handleDeleteCustomer = useCallback(async (customerId) => { if (!shopOwnerId) return; try { await deleteDoc(doc(db, `users/${shopOwnerId}/customers`, customerId)); setCustomers(prev => prev.filter(c => c.id !== customerId)); toast.success("Customer deleted successfully!"); } catch (error) { toast.error("Failed to delete customer."); } }, [shopOwnerId]);
+  
+  const handleProcessSale = useCallback(async (saleData) => { if (!shopOwnerId) return; const { saleRecord, customerId } = saleData; let saleToSave = { ...saleRecord, cashierId: currentUser.uid, cashierEmail: currentUser.email }; try { const batch = writeBatch(db); saleRecord.items.forEach(item => { const productInDB = products.find(p => p.barcode === item.barcode); if(productInDB) { const productRef = doc(db, `users/${shopOwnerId}/products`, productInDB.id); batch.update(productRef, { quantity: increment(-item.quantity) }); } }); if (customerId !== 'walk-in') { const customer = customers.find(c => c.id === customerId); if (customer) { saleToSave.customerId = customerId; saleToSave.customerName = customer.name; } const cartTotal = saleRecord.totalAmount; const previousDue = customer ? customer.dueBalance : 0; const grandTotal = cartTotal + previousDue; const amountPaid = saleRecord.amountPaid; const newDue = grandTotal - amountPaid; const customerDocRef = doc(db, `users/${shopOwnerId}/customers`, customerId); batch.update(customerDocRef, { dueBalance: newDue }); } const newSaleRef = doc(collection(db, `users/${shopOwnerId}/sales`)); batch.set(newSaleRef, saleToSave); await batch.commit(); setProducts(prevProducts => prevProducts.map(p => { const itemInCart = saleRecord.items.find(item => item.barcode === p.barcode); return itemInCart ? { ...p, quantity: p.quantity - itemInCart.quantity } : p; })); if (customerId !== 'walk-in') { const customer = customers.find(c => c.id === customerId); const cartTotal = saleRecord.totalAmount; const previousDue = customer ? customer.dueBalance : 0; const grandTotal = cartTotal + previousDue; const amountPaid = saleRecord.amountPaid; const newDue = grandTotal - amountPaid; setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, dueBalance: newDue } : c)); } setSalesHistory(prev => [...prev, { id: newSaleRef.id, ...saleToSave }]); toast.success("Sale recorded and stock updated!"); } catch (error) { console.error("Error processing sale:", error); toast.error("Failed to record sale."); } }, [shopOwnerId, customers, currentUser, products]);
+  const handleReceivePayment = useCallback(async (customer, amount) => { if (!shopOwnerId) return; toast.loading("Processing payment..."); try { const customerDocRef = doc(db, `users/${shopOwnerId}/customers`, customer.id); const newBalance = customer.dueBalance - amount; await updateDoc(customerDocRef, { dueBalance: newBalance }); const paymentRecord = { items: [{ name: "Dues Cleared / Payment Received", quantity: 1, price: amount, buyPrice: amount }], totalAmount: amount, amountPaid: amount, totalProfit: 0, date: new Date().toISOString(), paymentType: 'Cash', change: 0, customerId: customer.id, customerName: customer.name, cashierId: currentUser.uid, cashierEmail: currentUser.email }; const docRef = await addDoc(collection(db, `users/${shopOwnerId}/sales`), paymentRecord); setSalesHistory(prev => [...prev, { id: docRef.id, ...paymentRecord }]); setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, dueBalance: newBalance } : c)); toast.dismiss(); toast.success("Payment received and balance updated!"); } catch (error) { toast.dismiss(); console.error("Error receiving payment:", error); toast.error("Failed to process payment."); } }, [shopOwnerId, currentUser]);
+  const handleResetPassword = useCallback(async (email) => { try { await sendPasswordResetEmail(auth, email); toast.success(`Password reset link sent to ${email}`); } catch (error) { toast.error(error.message || "Failed to send reset link."); } }, []);
+  const handleToggleUserStatus = useCallback(async (userToToggle) => { const newStatus = userToToggle.status === 'disabled' ? 'active' : 'disabled'; if (window.confirm(`Are you sure you want to ${newStatus} the user ${userToToggle.email}?`)) { try { const userDocRef = doc(db, "users", userToToggle.uid); await updateDoc(userDocRef, { status: newStatus }); setAllUsers(prevUsers => prevUsers.map(u => u.uid === userToToggle.uid ? { ...u, status: newStatus } : u)); toast.success(`User ${userToToggle.email} has been ${newStatus}.`); } catch (error) { toast.error("Failed to update user status."); } } }, []);
+  const handleClearAllData = useCallback(async () => { if (!shopOwnerId) return; const confirmationText = "DELETE"; const userInput = prompt(`This will delete ALL data. Type "${confirmationText}" to confirm.`); if (userInput !== confirmationText) { if (userInput !== null) { toast.error("Confirmation text did not match."); } return; } toast.loading("Clearing all data..."); try { const batch = writeBatch(db); const collectionsToDelete = ['products', 'sales', 'customers']; for (const coll of collectionsToDelete) { const snapshot = await getDocs(collection(db, `users/${shopOwnerId}/${coll}`)); snapshot.forEach(document => batch.delete(document.ref)); } await batch.commit(); toast.dismiss(); toast.success("All data has been cleared."); setProducts([]); setSalesHistory([]); setCustomers([]); } catch (error) { toast.dismiss(); console.error("Error clearing all data:", error); toast.error("Failed to clear data."); } }, [shopOwnerId]);
+
   if (dataIsLoading) return <LoadingSpinner />;
 
   if (userRole === 'cashier') {
-    return (
-      <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-900">
-        <header className="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-teal-600 dark:text-teal-400">Aasan POS - Cashier</h1>
-          <button onClick={logout} className="flex items-center space-x-2 text-red-500 hover:text-red-700 font-semibold transition-colors">
-            <FiLogOut />
-            <span>Logout</span>
-          </button>
-        </header>
-        <main className="flex-grow">
-          <POS products={products} customers={customers} onProcessSale={handleProcessSale} cart={cart} setCart={setCart} />
-        </main>
-      </div>
-    );
+    return ( <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-900"> <header className="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center"> <h1 className="text-xl font-bold text-teal-600 dark:text-teal-400">Aasan POS - Cashier</h1> <button onClick={logout} className="flex items-center space-x-2 text-red-500 hover:text-red-700 font-semibold transition-colors"> <FiLogOut /> <span>Logout</span> </button> </header> <main className="flex-grow"> <POS products={products} customers={customers} onProcessSale={handleProcessSale} cart={cart} setCart={setCart} /> </main> </div> );
   }
 
   return (
@@ -281,10 +112,5 @@ function MainApp() {
 export default function App() {
   const { currentUser, loading } = useAuth();
   if (loading) return <LoadingSpinner />;
-  return (
-    <>
-      <Toaster position="top-center" reverseOrder={false} toastOptions={{ style: { background: '#333', color: '#fff' } }} />
-      {currentUser ? <MainApp /> : <Login />}
-    </>
-  );
+  return ( <> <Toaster position="top-center" reverseOrder={false} toastOptions={{ style: { background: '#333', color: '#fff' } }} /> {currentUser ? <MainApp /> : <Login />} </> );
 }
