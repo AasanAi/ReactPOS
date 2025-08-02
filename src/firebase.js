@@ -1,40 +1,41 @@
-// Import the functions you need from the SDKs you need
+// src/firebase.js
+
+// 1. Firebase SDK se zaroori functions import karein
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
-import { auth, db } from './firebaseConfig'; // Aapki config file ka path
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+// getAnalytics optional hai, agar aap use nahi kar rahe to hata sakte hain
+import { getAnalytics } from "firebase/analytics"; 
 
-
-// Firebase configuration
+// 2. Apne project ki Firebase configuration
+// (Best practice yeh hai ke in keys ko .env file mein rakhein)
 const firebaseConfig = {
-  apiKey: "AIzaSyB2PyIPcxBLd0TvFN1hAkIHqSN1SrvUBc0",
-  authDomain: "aasan-pos.firebaseapp.com",
-  projectId: "aasan-pos",
-  storageBucket: "aasan-pos.firebasestorage.app",
-  messagingSenderId: "872296255660",
-  appId: "1:872296255660:web:e734f07a02057f3adacf09",
-  measurementId: "G-B9QG72HW2X"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
+// 3. Firebase app ko initialize karein
 const app = initializeApp(firebaseConfig);
 
-// Initialize Analytics
-const analytics = getAnalytics(app);
+// 4. Firebase services ko initialize karein aur export karein
+const auth = getAuth(app);
+const db = getFirestore(app);
+const analytics = getAnalytics(app); // Is line ko hata dein agar analytics use nahi kar rahe
 
-// Initialize Authentication
-export const auth = getAuth(app);
+// 5. Firestore ke liye Offline Persistence enable karein
+enableIndexedDbPersistence(db)
+  .catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn("⚠️ Firestore persistence failed: Multiple tabs open. Data will not be saved offline in this tab.");
+    } else if (err.code === 'unimplemented') {
+      console.warn("⚠️ Firestore persistence is not available in this browser.");
+    }
+  });
 
-// Initialize Firestore
-export const db = getFirestore(app);
-
-// Enable offline persistence for Firestore
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    console.warn("⚠️ Firestore persistence failed: Multiple tabs open.");
-  } else if (err.code === 'unimplemented') {
-    console.warn("⚠️ Firestore persistence is not available in this browser.");
-  }
-});
+// 6. Doosri files mein istemal ke liye services ko export karein
+export { app, auth, db, analytics };
