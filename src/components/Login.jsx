@@ -1,29 +1,25 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { FiMoon, FiSun } from 'react-icons/fi'; // Dark mode ke liye icons
-import { useEffect } from 'react';
+import { FiLock, FiMoon, FiSun } from 'react-icons/fi'; // Lock icon import karein
 
-// Yeh DarkModeToggle component sirf is file ke andar rakha gaya hai
+// Dark Mode Toggle, ab yeh Login screen par bhi kaam karega
 function DarkModeToggle() {
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
+    const root = window.document.documentElement;
+    const oldTheme = isDarkMode ? 'light' : 'dark';
+    root.classList.remove(oldTheme);
+    root.classList.add(isDarkMode ? 'dark' : 'light');
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
   return (
-    <button onClick={() => setIsDarkMode(prev => !prev)} className="text-gray-600 dark:text-gray-300 hover:text-teal-500 dark:hover:text-teal-400 transition-colors">
-      {isDarkMode ? <FiSun size={22} /> : <FiMoon size={22} />}
+    <button onClick={() => setIsDarkMode(!isDarkMode)} className="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm p-2.5">
+      {isDarkMode ? <FiSun size={20} /> : <FiMoon size={20} />}
     </button>
   );
 }
-
 
 function Login() {
   const [isLoginView, setIsLoginView] = useState(true);
@@ -44,13 +40,15 @@ function Login() {
       if (isLoginView) {
         await login(email, password);
         toast.success('Logged in successfully!');
+        // No reload needed, context will handle it
       } else {
         const passwordConfirm = passwordConfirmRef.current.value;
         if (password !== passwordConfirm) {
           throw new Error("Passwords do not match");
         }
         await signup(email, password);
-        toast.success('Account created successfully!');
+        toast.success('Account created successfully! Please log in.');
+        setIsLoginView(true); // Signup ke baad user ko login page par bhej do
       }
     } catch (error) {
       toast.error(error.message || 'Failed to process request.');
@@ -73,43 +71,49 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
       <div className="absolute top-4 right-4">
         <DarkModeToggle />
       </div>
-      <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
-        <h2 className="text-3xl font-bold text-center text-gray-800 dark:text-white">
-          {isLoginView ? 'Welcome to Aasan POS' : 'Create an Account'}
-        </h2>
+      <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="p-3 bg-teal-100 dark:bg-teal-900 rounded-full">
+            <FiLock className="h-8 w-8 text-teal-600 dark:text-teal-400" />
+          </div>
+          <h2 className="text-3xl font-bold text-center text-gray-800 dark:text-white">
+            {isLoginView ? 'Welcome to Aasan POS' : 'Create an Account'}
+          </h2>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Email</label>
-            <input type="email" ref={emailRef} required className="w-full p-2 mt-1 bg-gray-100 dark:bg-gray-700 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-teal-500 focus:ring-teal-500" />
+            <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Email Address</label>
+            <input type="email" ref={emailRef} required className="w-full p-3 mt-1 bg-gray-100 dark:bg-gray-700 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:border-teal-500 focus:ring-2 focus:ring-teal-500 transition-all" />
           </div>
           <div>
-            {/* --- YAHAN GALTI THEEK KAR DI GAYI HAI --- */}
             <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Password</label>
-            <input type="password" ref={passwordRef} required className="w-full p-2 mt-1 bg-gray-100 dark:bg-gray-700 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-teal-500 focus:ring-teal-500" />
+            <input type="password" ref={passwordRef} required className="w-full p-3 mt-1 bg-gray-100 dark:bg-gray-700 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:border-teal-500 focus:ring-2 focus:ring-teal-500 transition-all" />
           </div>
           {!isLoginView && (
             <div>
-              {/* --- YAHAN BHI GALTI THEEK KAR DI GAYI HAI --- */}
               <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Confirm Password</label>
-              <input type="password" ref={passwordConfirmRef} required className="w-full p-2 mt-1 bg-gray-100 dark:bg-gray-700 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-teal-500 focus:ring-teal-500" />
+              <input type="password" ref={passwordConfirmRef} required className="w-full p-3 mt-1 bg-gray-100 dark:bg-gray-700 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:border-teal-500 focus:ring-2 focus:ring-teal-500 transition-all" />
             </div>
           )}
-          <button type="submit" disabled={loading} className="w-full py-2 px-4 bg-teal-600 hover:bg-teal-700 rounded-md text-white text-lg font-semibold transition-colors disabled:bg-teal-400">
+          {isLoginView && (
+            <div className="text-right">
+                <button type="button" onClick={handlePasswordReset} className="text-sm text-teal-600 hover:underline dark:text-teal-400 font-semibold">
+                    Forgot Password?
+                </button>
+            </div>
+          )}
+          <button type="submit" disabled={loading} className="w-full py-3 px-4 bg-teal-600 hover:bg-teal-700 rounded-lg text-white text-lg font-semibold transition-colors disabled:bg-teal-400 disabled:cursor-not-allowed">
             {loading ? 'Processing...' : (isLoginView ? 'Log In' : 'Sign Up')}
           </button>
         </form>
-        <div className="text-center">
-          <button onClick={handlePasswordReset} className="text-sm text-teal-600 hover:underline dark:text-teal-400">
-            Forgot Password?
-          </button>
-        </div>
+        
         <p className="text-center text-sm text-gray-600 dark:text-gray-300">
           {isLoginView ? "Don't have an account?" : 'Already have an account?'}
-          <button onClick={() => setIsLoginView(!isLoginView)} className="ml-1 text-teal-600 hover:underline dark:text-teal-400 font-semibold">
+          <button type="button" onClick={() => setIsLoginView(!isLoginView)} className="ml-1 text-teal-600 hover:underline dark:text-teal-400 font-semibold">
             {isLoginView ? 'Sign Up' : 'Log In'}
           </button>
         </p>
