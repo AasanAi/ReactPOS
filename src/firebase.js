@@ -5,7 +5,7 @@ import { getAuth } from "firebase/auth";
 import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { auth, db } from './firebaseConfig'; // Aapki config file ka path
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+
 
 // Firebase configuration
 const firebaseConfig = {
