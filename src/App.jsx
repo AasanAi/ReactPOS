@@ -23,7 +23,6 @@ import { FiLogOut } from "react-icons/fi";
 function MainApp() {
   const { currentUser, userRole, shopOwnerId, logout } = useAuth();
   const [activeTab, setActiveTab] = useState(userRole === 'admin' ? "dashboard" : "pos");
-
   const [products, setProducts] = useState(null);
   const [salesHistory, setSalesHistory] = useState(null);
   const [customers, setCustomers] = useState(null);
@@ -75,7 +74,7 @@ function MainApp() {
   const handleProcessSale = useCallback(async (saleData) => { if (!shopOwnerId) return; const { saleRecord, customerId } = saleData; let saleToSave = { ...saleRecord, cashierId: currentUser.uid, cashierEmail: currentUser.email }; try { const batch = writeBatch(db); saleRecord.items.forEach(item => { const productInDB = products.find(p => p.barcode === item.barcode); if(productInDB) { const productRef = doc(db, `users/${shopOwnerId}/products`, productInDB.id); batch.update(productRef, { quantity: increment(-item.quantity) }); } }); if (customerId !== 'walk-in') { const customer = customers.find(c => c.id === customerId); if (customer) { saleToSave.customerId = customerId; saleToSave.customerName = customer.name; } const cartTotal = saleRecord.totalAmount; const previousDue = customer ? customer.dueBalance : 0; const grandTotal = cartTotal + previousDue; const amountPaid = saleRecord.amountPaid; const newDue = grandTotal - amountPaid; const customerDocRef = doc(db, `users/${shopOwnerId}/customers`, customerId); batch.update(customerDocRef, { dueBalance: newDue }); } const newSaleRef = doc(collection(db, `users/${shopOwnerId}/sales`)); batch.set(newSaleRef, saleToSave); await batch.commit(); setProducts(prevProducts => prevProducts.map(p => { const itemInCart = saleRecord.items.find(item => item.barcode === p.barcode); return itemInCart ? { ...p, quantity: p.quantity - itemInCart.quantity } : p; })); if (customerId !== 'walk-in') { const customer = customers.find(c => c.id === customerId); const cartTotal = saleRecord.totalAmount; const previousDue = customer ? customer.dueBalance : 0; const grandTotal = cartTotal + previousDue; const amountPaid = saleRecord.amountPaid; const newDue = grandTotal - amountPaid; setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, dueBalance: newDue } : c)); } setSalesHistory(prev => [...prev, { id: newSaleRef.id, ...saleToSave }]); toast.success("Sale recorded and stock updated!"); } catch (error) { console.error("Error processing sale:", error); toast.error("Failed to record sale."); } }, [shopOwnerId, customers, currentUser, products]);
   const handleReceivePayment = useCallback(async (customer, amount) => { if (!shopOwnerId) return; toast.loading("Processing payment..."); try { const customerDocRef = doc(db, `users/${shopOwnerId}/customers`, customer.id); const newBalance = customer.dueBalance - amount; await updateDoc(customerDocRef, { dueBalance: newBalance }); const paymentRecord = { items: [{ name: "Dues Cleared / Payment Received", quantity: 1, price: amount, buyPrice: amount }], totalAmount: amount, amountPaid: amount, totalProfit: 0, date: new Date().toISOString(), paymentType: 'Cash', change: 0, customerId: customer.id, customerName: customer.name, cashierId: currentUser.uid, cashierEmail: currentUser.email }; const docRef = await addDoc(collection(db, `users/${shopOwnerId}/sales`), paymentRecord); setSalesHistory(prev => [...prev, { id: docRef.id, ...paymentRecord }]); setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, dueBalance: newBalance } : c)); toast.dismiss(); toast.success("Payment received and balance updated!"); } catch (error) { toast.dismiss(); console.error("Error receiving payment:", error); toast.error("Failed to process payment."); } }, [shopOwnerId, currentUser]);
   
-  // --- NAYE DELETE FUNCTIONS ---
+  // --- NAYE SALES DELETE FUNCTIONS ---
   const handleDeleteSale = useCallback(async (saleIdToDelete) => {
     if (!shopOwnerId) return;
     const toastId = toast.loading("Deleting sale...");
@@ -126,7 +125,6 @@ function MainApp() {
     return ( <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-900"> <header className="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center"> <h1 className="text-xl font-bold text-teal-600 dark:text-teal-400">Aasan POS - Cashier</h1> <button onClick={logout} className="flex items-center space-x-2 text-red-500 hover:text-red-700 font-semibold transition-colors"> <FiLogOut /> <span>Logout</span> </button> </header> <main className="flex-grow"> <POS products={products} customers={customers} onProcessSale={handleProcessSale} cart={cart} setCart={setCart} /> </main> </div> );
   }
 
-  //...
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans flex flex-col">
       <Header activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -134,13 +132,17 @@ function MainApp() {
         {activeTab === 'dashboard' && <Dashboard products={products} salesHistory={salesHistory} customers={customers} />}
         {activeTab === 'pos' && <POS products={products} customers={customers} onProcessSale={handleProcessSale} cart={cart} setCart={setCart} />}
         {activeTab === 'inventory' && <Inventory products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} />}
-        {activeTab === 'customers' && <Customers customers={customers} onAddProduct={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onReceivePayment={handleReceivePayment} />}
+        {activeTab === 'customers' && <Customers customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onReceivePayment={handleReceivePayment} />}
         {activeTab === 'sales report' && <SalesReport salesHistory={salesHistory} onDeleteSale={handleDeleteSale} onDeleteFilteredSales={handleDeleteFilteredSales} />}
-        {/* GALTI THEEK KAR DI GAYI HAI */}
         {activeTab === 'settings' && <Settings onClearData={handleClearAllData} allUsers={allUsers} onResetPassword={handleResetPassword} onToggleUserStatus={handleToggleUserStatus} />}
       </main>
       <Footer />
     </div>
   );
 }
-//...
+
+export default function App() {
+  const { currentUser, loading } = useAuth();
+  if (loading) return <LoadingSpinner />;
+  return ( <> <Toaster position="top-center" reverseOrder={false} toastOptions={{ style: { background: '#333', color: '#fff' } }} /> {currentUser ? <MainApp /> : <Login />} </> );
+}
