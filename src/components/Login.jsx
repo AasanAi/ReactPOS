@@ -1,9 +1,17 @@
+// src/components/Login.jsx
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { FiLock, FiMoon, FiSun } from 'react-icons/fi'; // Lock icon import karein
+import { FiLock, FiMoon, FiSun } from 'react-icons/fi';
 
-// Dark Mode Toggle, ab yeh Login screen par bhi kaam karega
+// --- NAYE IMPORTS ---
+import { FcGoogle } from 'react-icons/fc';
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { auth, db } from '../firebase'; // Apne firebase config file se import karein
+
+// Dark Mode Toggle, is code ko change nahi kiya gaya
 function DarkModeToggle() {
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
   useEffect(() => {
@@ -29,6 +37,49 @@ function Login() {
   const passwordConfirmRef = useRef();
   const { signup, login, resetPassword } = useAuth();
 
+  // --- NAYA FUNCTION: Google Sign-in ke liye ---
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    const provider = new GoogleAuthProvider();
+    const toastId = toast.loading("Connecting with Google...");
+    
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        // Agar user naya hai, to uske liye 'Admin' account banayein
+        await setDoc(userDocRef, {
+          uid: user.uid,
+          name: user.displayName || 'New User',
+          email: user.email,
+          role: 'Admin',
+          status: 'active',
+          createdAt: new Date(),
+          businessName: `${user.displayName}'s Store`
+        });
+        toast.success(`Welcome ${user.displayName}! Your account is ready.`, { id: toastId });
+      } else {
+        // Purana user hai, bas welcome back bolein
+        toast.success(`Welcome back, ${user.displayName}!`, { id: toastId });
+      }
+      // Context baqi kaam khud karlega
+    } catch (error) {
+      console.error("Google sign-in error:", error);
+      if (error.code !== 'auth/popup-closed-by-user') {
+        toast.error(error.message || "Google sign-in failed.", { id: toastId });
+      } else {
+        toast.dismiss(toastId);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Aapka original handleSubmit, isko change nahi kiya gaya
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -40,7 +91,6 @@ function Login() {
       if (isLoginView) {
         await login(email, password);
         toast.success('Logged in successfully!');
-        // No reload needed, context will handle it
       } else {
         const passwordConfirm = passwordConfirmRef.current.value;
         if (password !== passwordConfirm) {
@@ -48,7 +98,7 @@ function Login() {
         }
         await signup(email, password);
         toast.success('Account created successfully! Please log in.');
-        setIsLoginView(true); // Signup ke baad user ko login page par bhej do
+        setIsLoginView(true);
       }
     } catch (error) {
       toast.error(error.message || 'Failed to process request.');
@@ -57,6 +107,7 @@ function Login() {
     }
   };
 
+  // Aapka original handlePasswordReset, isko change nahi kiya gaya
   const handlePasswordReset = async () => {
     const email = emailRef.current.value;
     if (!email) {
@@ -75,7 +126,7 @@ function Login() {
       <div className="absolute top-4 right-4">
         <DarkModeToggle />
       </div>
-      <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg animate-fade-in-up">
         <div className="flex flex-col items-center space-y-4">
           <div className="p-3 bg-teal-100 dark:bg-teal-900 rounded-full">
             <FiLock className="h-8 w-8 text-teal-600 dark:text-teal-400" />
@@ -84,6 +135,27 @@ function Login() {
             {isLoginView ? 'Welcome to Aasan POS' : 'Create an Account'}
           </h2>
         </div>
+
+        {/* --- NAYA GOOGLE BUTTON AUR "OR" DIVIDER --- */}
+        <div className="space-y-4">
+            <button
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+                <FcGoogle size={24} />
+                <span>Continue with Google</span>
+            </button>
+        </div>
+
+        <div className="flex items-center">
+            <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+            <span className="mx-4 text-xs font-semibold text-gray-400 dark:text-gray-500">OR</span>
+            <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+        </div>
+        {/* --- YAHAN TAK NAYA CODE HAI --- */}
+
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Email Address</label>
