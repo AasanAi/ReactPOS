@@ -106,7 +106,7 @@ function MainApp() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans flex flex-col">
       <Header activeTab={activeTab} setActiveTab={setActiveTab} />
       <main className="flex-grow animate-fade-in-up" key={activeTab}>
-        {activeTab === 'dashboard' && <Dashboard products={products} salesHistory={salesHistory} />}
+        {activeTab === 'dashboard' && <Dashboard products={products} salesHistory={salesHistory} customers={customers} />}
         {activeTab === 'pos' && <POS products={products} customers={customers} onProcessSale={handleProcessSale} cart={cart} setCart={setCart} />}
         {activeTab === 'inventory' && <Inventory products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} />}
         {activeTab === 'customers' && <Customers customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onReceivePayment={handleReceivePayment} />}
