@@ -126,6 +126,7 @@ function MainApp() {
     return ( <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-900"> <header className="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center"> <h1 className="text-xl font-bold text-teal-600 dark:text-teal-400">Aasan POS - Cashier</h1> <button onClick={logout} className="flex items-center space-x-2 text-red-500 hover:text-red-700 font-semibold transition-colors"> <FiLogOut /> <span>Logout</span> </button> </header> <main className="flex-grow"> <POS products={products} customers={customers} onProcessSale={handleProcessSale} cart={cart} setCart={setCart} /> </main> </div> );
   }
 
+  //...
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans flex flex-col">
       <Header activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -133,17 +134,13 @@ function MainApp() {
         {activeTab === 'dashboard' && <Dashboard products={products} salesHistory={salesHistory} customers={customers} />}
         {activeTab === 'pos' && <POS products={products} customers={customers} onProcessSale={handleProcessSale} cart={cart} setCart={setCart} />}
         {activeTab === 'inventory' && <Inventory products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} />}
-        {activeTab === 'customers' && <Customers customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onReceivePayment={handleReceivePayment} />}
+        {activeTab === 'customers' && <Customers customers={customers} onAddProduct={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onReceivePayment={handleReceivePayment} />}
         {activeTab === 'sales report' && <SalesReport salesHistory={salesHistory} onDeleteSale={handleDeleteSale} onDeleteFilteredSales={handleDeleteFilteredSales} />}
-        {active_tab === 'settings' && <Settings onClearData={handleClearAllData} allUsers={allUsers} onResetPassword={handleResetPassword} onToggleUserStatus={handleToggleUserStatus} />}
+        {/* GALTI THEEK KAR DI GAYI HAI */}
+        {activeTab === 'settings' && <Settings onClearData={handleClearAllData} allUsers={allUsers} onResetPassword={handleResetPassword} onToggleUserStatus={handleToggleUserStatus} />}
       </main>
       <Footer />
     </div>
   );
 }
-
-export default function App() {
-  const { currentUser, loading } = useAuth();
-  if (loading) return <LoadingSpinner />;
-  return ( <> <Toaster position="top-center" reverseOrder={false} toastOptions={{ style: { background: '#333', color: '#fff' } }} /> {currentUser ? <MainApp /> : <Login />} </> );
-}
+//...
