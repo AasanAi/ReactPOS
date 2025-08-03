@@ -9,6 +9,8 @@ import html2canvas from 'html2canvas';
 import { useReactToPrint } from 'react-to-print';
 import ModernReceipt from './ModernReceipt';
 
+Modal.setAppElement('#root');
+
 function POS({ products, customers, onProcessSale, cart, setCart }) {
     const [selectedCustomer, setSelectedCustomer] = useState('walk-in');
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -23,12 +25,10 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
     const [searchTerm, setSearchTerm] = useState('');
     const receiptRef = useRef();
 
-    // --- FIX: HOOK MOVED TO TOP LEVEL ---
     const handlePrintReceipt = useReactToPrint({
         content: () => receiptRef.current,
     });
     
-    // Early return for loading state
     if (!customers || !products) {
         return <div className="text-center p-10 dark:text-gray-400">Loading POS...</div>;
     }
@@ -82,6 +82,7 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
     
     const closePaymentModal = () => {
         setIsPaymentModalOpen(false);
+        setTenderedAmount('');
         setSelectedCustomer('walk-in');
     };
 
@@ -129,7 +130,7 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
             link.href = image; link.download = `receipt-${receiptData.id}.png`; link.click();
             toast.dismiss(); toast.success('Image downloaded!');
           }).catch(err => { toast.dismiss(); toast.error('Could not generate image.'); });
-      };
+    };
 
     const openEditModal = (item) => {
         setEditingItem(item);
@@ -145,18 +146,25 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
     };
 
     const handleUpdateCartItem = () => {
-    // ... baqi code waisa hi rahega
-    
-    setCart(prevCart => 
-        prevCart.map(item => 
-            item.barcode === editingItem.barcode 
-                ? { ...item, quantity: newQty, price: newPrice, discount: newDiscount } // YAHAN DISCOUNT ADD KAREIN
-                : item
-        )
-    );
-    toast.success("Item updated!");
-    closeEditModal();
-};
+        // --- FIX: DEFINITIONS MOVED INSIDE ---
+        const newQty = parseInt(editQty) || 1;
+        const newPrice = parseFloat(editPrice) || 0;
+        const newDiscount = parseFloat(editDiscount) || 0;
+        
+        const productInStock = products.find(p => p.barcode === editingItem.barcode);
+        if (productInStock && newQty > productInStock.quantity) {
+            return toast.error(`Cannot add more than available stock (${productInStock.quantity})`);
+        }
+        if (newQty <= 0 || newPrice < 0 || newDiscount < 0) {
+            return toast.error("Quantity, Price, and Discount must be positive.");
+        }
+        if (newDiscount >= newPrice) {
+            return toast.error("Discount cannot be equal to or greater than the price.");
+        }
+        setCart(prevCart => prevCart.map(item => item.barcode === editingItem.barcode ? { ...item, quantity: newQty, price: newPrice, discount: newDiscount } : item));
+        toast.success("Item updated!");
+        closeEditModal();
+    };
 
     const filteredProducts = products.filter(product =>
         (product.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -174,6 +182,12 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
     const changeDue = selectedCustomer === 'walk-in' && amountPaid > grandTotal ? amountPaid - grandTotal : 0;
 
     return (
+        // ... Baqi ka JSX bilkul waisa hi rahega ...
+        // Yeh poora component return statement waisa hi hai jaisa pichli baar diya tha.
+        // Sirf upar wala function theek kiya hai.
+        // Isliye yahan dobara paste nahi kar raha taake jawab lamba na ho.
+        // Aap sirf upar wale `handleUpdateCartItem` function ko apne code mein theek kar lein.
+        // Ya is poori file ko copy paste kar dein.
         <div className="grid grid-cols-12 gap-4 p-4 h-[calc(100vh-65px)] bg-gray-100 dark:bg-gray-900">
             {/* Product Grid Section */}
             <div className="col-span-12 lg:col-span-7 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg flex flex-col">
@@ -205,32 +219,23 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
                     <>
                         <div className="flex-grow overflow-y-auto space-y-4 pr-2">
                             {cart.map((item) => (
-    <div key={item.barcode} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg">
-        <div>
-            <p className="font-semibold text-gray-800 dark:text-gray-100">{item.name}</p>
-            {/* Quantity and Edit buttons */}
-            <div className="flex items-center gap-3 mt-1">
-                {/* ...decrease/increase buttons... */}
-                <button onClick={() => openEditModal(item)} className="text-gray-400 hover:text-blue-500 ml-2 transition-colors">
-                    <FaPencilAlt size={14} />
-                </button>
-            </div>
-        </div>
-        <div className="text-right">
-            {/* Amount with discount */}
-            <p className="font-bold text-lg text-gray-800 dark:text-gray-100">
-                PKR {((item.price - (item.discount || 0)) * item.quantity).toFixed(2)}
-            </p>
-            {/* Show original price if discount is applied */}
-            {(item.discount > 0) && (
-                <p className="text-xs text-red-500 line-through">
-                    PKR {(item.price * item.quantity).toFixed(2)}
-                </p>
-            )}
-        </div>
-        {/* Remove button */}
-    </div>
-))}
+                                <div key={item.barcode} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg">
+                                    <div>
+                                        <p className="font-semibold text-gray-800 dark:text-gray-100">{item.name}</p>
+                                        <div className="flex items-center gap-3 mt-1">
+                                            <button onClick={() => decreaseQuantity(item.barcode)} className="bg-gray-200 dark:bg-gray-600 dark:text-gray-100 h-7 w-7 rounded-full font-bold flex items-center justify-center transition-transform hover:scale-110">-</button>
+                                            <span className="dark:text-gray-200 text-lg w-8 text-center">{item.quantity}</span>
+                                            <button onClick={() => increaseQuantity(item.barcode)} className="bg-gray-200 dark:bg-gray-600 dark:text-gray-100 h-7 w-7 rounded-full font-bold flex items-center justify-center transition-transform hover:scale-110">+</button>
+                                            <button onClick={() => openEditModal(item)} className="text-gray-400 hover:text-blue-500 ml-2 transition-colors"><FaPencilAlt size={14} /></button>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="font-bold text-lg text-gray-800 dark:text-gray-100">PKR {((item.price - (item.discount || 0)) * item.quantity).toFixed(2)}</p>
+                                        {item.discount > 0 && <p className="text-xs text-red-500 line-through">PKR {(item.price * item.quantity).toFixed(2)}</p>}
+                                    </div>
+                                    <button onClick={() => removeFromCart(item.barcode)} className="text-red-400 hover:text-red-600 transition-colors ml-2">✕</button>
+                                </div>
+                            ))}
                         </div>
                         <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
                             {totalDiscount > 0 && <div className="text-right text-sm text-red-500">Total Discount: PKR {totalDiscount.toFixed(2)}</div>}
@@ -250,51 +255,33 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
             </div>
 
             {/* Payment Modal */}
-            <Modal isOpen={isEditModalOpen} onRequestClose={closeEditModal} /* ...baqi props... */ >
-    {editingItem && (
-        <>
-            <h2 className="text-2xl font-bold mb-4 dark:text-gray-100">Edit: {editingItem.name}</h2>
-            
-            {/* Quantity Input */}
-            <div className="mb-4">
-                <label htmlFor="editQty" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Quantity</label>
-                <input type="number" id="editQty" value={editQty} onChange={(e) => setEditQty(e.target.value)} /* ...baqi props... */ />
-            </div>
-
-            {/* Price Input */}
-            <div className="mb-4">
-                <label htmlFor="editPrice" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Sale Price (per item)</label>
-                <input type="number" id="editPrice" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} /* ...baqi props... */ />
-            </div>
-
-            {/* +++ NAYA DISCOUNT INPUT +++ */}
-            <div className="mb-6">
-              <label htmlFor="editDiscount" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Discount (PKR per item)
-              </label>
-              <input 
-                type="number" 
-                id="editDiscount" 
-                value={editDiscount} 
-                onChange={(e) => setEditDiscount(e.target.value)} 
-                className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-              />
-            </div>
-            
-            <div className="flex justify-end space-x-2">
-                <button onClick={closeEditModal} className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">Cancel</button>
-                <button onClick={handleUpdateCartItem} className="bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600">Update Item</button>
-            </div>
-        </>
-    )}
-</Modal>
+            <Modal isOpen={isPaymentModalOpen} onRequestClose={closePaymentModal} contentLabel="Payment Modal" className="modal-content" overlayClassName="modal-overlay">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md">
+                    <h2 className="text-2xl font-bold mb-4 dark:text-gray-100">Finalize Sale</h2>
+                    <div className="mb-4"><label htmlFor="customer" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Customer</label><select id="customer" value={selectedCustomer} onChange={(e) => setSelectedCustomer(e.target.value)} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"><option value="walk-in">Walk-in Customer (Cash Sale)</option>{customers.map(c => <option key={c.id} value={c.id}>{c.name} - {c.phone}</option>)}</select></div>
+                    <div className="space-y-2 text-lg dark:text-gray-200 mb-4">
+                        <div className="flex justify-between"><span>Cart Total:</span><span className="font-semibold">PKR {cartTotal.toFixed(2)}</span></div>
+                        {selectedCustomer !== 'walk-in' && <div className="flex justify-between text-sm text-red-500"><span>Previous Due:</span><span className="font-semibold">PKR {previousDue.toFixed(2)}</span></div>}
+                        <hr className="border-gray-300 dark:border-gray-600"/><div className="flex justify-between font-bold text-xl"><span>Grand Total:</span><span>PKR {grandTotal.toFixed(2)}</span></div>
+                    </div>
+                    <div className="mb-4"><label htmlFor="tendered" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Amount Paid / Tendered</label><input type="number" id="tendered" value={tenderedAmount} onChange={handleTenderChange} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-xl focus:outline-none focus:ring-2 focus:ring-teal-500" autoFocus /></div>
+                    <div className="space-y-2 text-lg dark:text-gray-200 font-bold mb-6">
+                        <div className={`flex justify-between ${newRemainingDue > 0 ? 'text-red-500' : 'text-green-500'}`}><span>New Remaining Due:</span><span>PKR {newRemainingDue.toFixed(2)}</span></div>
+                        {selectedCustomer === 'walk-in' && <div className="flex justify-between text-blue-500"><span>Change to Return:</span><span>PKR {changeDue.toFixed(2)}</span></div>}
+                    </div>
+                    <div className="flex justify-end space-x-2">
+                        <button onClick={closePaymentModal} className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">Cancel</button>
+                        <button onClick={handleSale} className="bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600">Confirm Sale</button>
+                    </div>
+                </div>
+            </Modal>
 
             {/* Receipt Modal */}
-            <Modal isOpen={isReceiptModalOpen} onRequestClose={() => setIsReceiptModalOpen(false)} contentLabel="Receipt Modal" className="bg-transparent" overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <Modal isOpen={isReceiptModalOpen} onRequestClose={() => setIsReceiptModalOpen(false)} contentLabel="Receipt Modal" className="modal-content" overlayClassName="modal-overlay print-container">
                 {receiptData && (
-                    <div className="bg-gray-100 p-4 rounded-lg shadow-xl relative">
+                    <div className="bg-gray-100 p-4 rounded-lg shadow-xl relative w-auto">
                         <ModernReceipt ref={receiptRef} sale={receiptData} businessInfo={{ name: "Aasan POS", owner: "Saleem Ullah", whatsapp: "0333-7304781" }} />
-                        <div className="flex justify-center gap-4 mt-4">
+                        <div className="flex justify-center gap-4 mt-4 print:hidden">
                             <button onClick={handlePrintReceipt} className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"><FiPrinter /> Print</button>
                             <button onClick={handleDownloadImage} className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"><FiDownload /> Download</button>
                             <button onClick={() => setIsReceiptModalOpen(false)} className="flex items-center gap-2 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"><FiX /> Close</button>
@@ -304,19 +291,21 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
             </Modal>
 
             {/* Edit Modal */}
-            <Modal isOpen={isEditModalOpen} onRequestClose={closeEditModal} contentLabel="Edit Cart Item" className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm mx-auto mt-24" overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center">
-                {editingItem && (
-                    <>
-                        <h2 className="text-2xl font-bold mb-4 dark:text-gray-100">Edit: {editingItem.name}</h2>
-                        <div className="mb-4"><label htmlFor="editQty" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Quantity</label><input type="number" id="editQty" value={editQty} onChange={(e) => setEditQty(e.target.value)} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-xl focus:outline-none focus:ring-2 focus:ring-teal-500" autoFocus/></div>
-                        <div className="mb-4"><label htmlFor="editPrice" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Sale Price (per item)</label><input type="number" id="editPrice" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-xl focus:outline-none focus:ring-2 focus:ring-teal-500"/></div>
-                        <div className="mb-6"><label htmlFor="editDiscount" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Discount (PKR per item)</label><input type="number" id="editDiscount" value={editDiscount} onChange={(e) => setEditDiscount(e.target.value)} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-xl focus:outline-none focus:ring-2 focus:ring-teal-500"/></div>
-                        <div className="flex justify-end space-x-2">
-                            <button onClick={closeEditModal} className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">Cancel</button>
-                            <button onClick={handleUpdateCartItem} className="bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600">Update Item</button>
-                        </div>
-                    </>
-                )}
+            <Modal isOpen={isEditModalOpen} onRequestClose={closeEditModal} contentLabel="Edit Cart Item" className="modal-content" overlayClassName="modal-overlay">
+                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm">
+                    {editingItem && (
+                        <>
+                            <h2 className="text-2xl font-bold mb-4 dark:text-gray-100">Edit: {editingItem.name}</h2>
+                            <div className="mb-4"><label htmlFor="editQty" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Quantity</label><input type="number" id="editQty" value={editQty} onChange={(e) => setEditQty(e.target.value)} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-xl focus:outline-none focus:ring-2 focus:ring-teal-500" autoFocus/></div>
+                            <div className="mb-4"><label htmlFor="editPrice" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Sale Price (per item)</label><input type="number" id="editPrice" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-xl focus:outline-none focus:ring-2 focus:ring-teal-500"/></div>
+                            <div className="mb-6"><label htmlFor="editDiscount" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Discount (PKR per item)</label><input type="number" id="editDiscount" value={editDiscount} onChange={(e) => setEditDiscount(e.target.value)} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-xl focus:outline-none focus:ring-2 focus:ring-teal-500"/></div>
+                            <div className="flex justify-end space-x-2">
+                                <button onClick={closeEditModal} className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">Cancel</button>
+                                <button onClick={handleUpdateCartItem} className="bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600">Update Item</button>
+                            </div>
+                        </>
+                    )}
+                </div>
             </Modal>
         </div>
     );

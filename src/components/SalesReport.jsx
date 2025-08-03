@@ -6,11 +6,10 @@ import toast from 'react-hot-toast';
 import { utils, writeFile } from 'xlsx';
 import { FaTrashAlt } from 'react-icons/fa';
 import { FiPrinter, FiDownload, FiX } from 'react-icons/fi';
-import { useReactToPrint } from 'react-to-print';
+import { useReactToPrint } from 'react-to-print'; // SAHI IMPORT
 import html2canvas from 'html2canvas';
-import ModernReceipt from './ModernReceipt'; // Make sure this path is correct
+import ModernReceipt from './ModernReceipt';
 
-// Set the app element for react-modal to avoid screen reader issues
 Modal.setAppElement('#root');
 
 function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales }) {
@@ -19,10 +18,9 @@ function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales }) {
   const [selectedSale, setSelectedSale] = useState(null);
   const receiptRef = useRef();
 
-  // Define the print handler hook at the top level
-  const handlePrintReceipt = useReactTo-print({
+  // --- FIX: HYPHEN REMOVED ---
+  const handlePrintReceipt = useReactToPrint({
     content: () => receiptRef.current,
-    // This function runs after printing is done or cancelled
     onAfterPrint: () => toast('Printing process finished.', { icon: '📄' }),
   });
 
@@ -30,7 +28,6 @@ function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales }) {
     return <div className="text-center p-10 dark:text-gray-400">Loading sales report...</div>;
   }
 
-  // --- Data Filtering Logic ---
   const filteredSales = salesHistory
     .filter(sale => {
       if (!sale.date) return false;
@@ -39,42 +36,36 @@ function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales }) {
       if (filter === "today") {
         return saleDate.toDateString() === now.toDateString();
       }
-      return true; // "all" case
+      return true;
     })
     .filter(sale =>
       (sale.id ? sale.id.toString().toLowerCase() : '').includes(searchTerm.toLowerCase())
     );
   
-  // --- Bulk Delete Logic ---
   const handleDeleteFiltered = () => {
     if (filteredSales.length === 0) {
-      return toast.error("There are no sales to delete in the current filter.");
+        return toast.error("There are no sales to delete in the current filter.");
     }
     if (window.confirm(`Are you sure you want to delete all ${filteredSales.length} currently filtered sales? This action cannot be undone.`)) {
-      const confirmationText = "DELETE";
-      const userInput = prompt(`To confirm, please type "${confirmationText}"`);
-      if (userInput === confirmationText) {
-        onDeleteFilteredSales(filteredSales);
-      } else if (userInput !== null) { // User didn't just cancel the prompt
-        toast.error("Confirmation text did not match. Deletion cancelled.");
-      }
+        const confirmationText = "DELETE";
+        const userInput = prompt(`To confirm, please type "${confirmationText}"`);
+        if (userInput === confirmationText) {
+            onDeleteFilteredSales(filteredSales);
+        } else if (userInput !== null) {
+            toast.error("Confirmation text did not match. Deletion cancelled.");
+        }
     }
   };
 
-  // --- Export Logic (CSV & Excel) ---
   const exportToExcel = (data) => {
     if (!data || data.length === 0) {
       toast.error("No data to export.");
       return;
     }
     const worksheetData = data.map(sale => ({
-      "Sale ID": sale.id,
-      "Date": new Date(sale.date).toLocaleString(),
-      "Customer": sale.customerName || 'Walk-in',
-      "Payment Type": sale.paymentType || 'N/A',
-      "Total Amount": sale.totalAmount || 0,
-      "Amount Paid": sale.amountPaid || 0,
-      "Profit": sale.totalProfit || 0,
+      "Sale ID": sale.id, "Date": new Date(sale.date).toLocaleString(), "Customer": sale.customerName || 'Walk-in',
+      "Payment Type": sale.paymentType || 'N/A', "Total Amount": sale.totalAmount || 0,
+      "Amount Paid": sale.amountPaid || 0, "Profit": sale.totalProfit || 0,
     }));
     const worksheet = utils.json_to_sheet(worksheetData);
     const workbook = utils.book_new();
@@ -82,35 +73,26 @@ function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales }) {
     writeFile(workbook, `sales_report_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
-  // --- Receipt Download as Image Logic ---
   const handleDownloadImage = () => {
     const receiptElement = receiptRef.current;
     if (!receiptElement) return;
-
     toast.loading('Generating Image...', { id: 'download-toast' });
-    html2canvas(receiptElement, {
-      scale: 3, // Higher scale for better quality
-      useCORS: true, // Important for external resources if any
-      backgroundColor: '#ffffff',
-    }).then((canvas) => {
-      const link = document.createElement('a');
-      link.download = `receipt-${selectedSale.id}.png`;
-      link.href = canvas.toDataURL('image/png', 1.0);
-      link.click();
-      toast.success('Image downloaded!', { id: 'download-toast' });
-    }).catch(err => {
-      toast.error('Could not generate image.', { id: 'download-toast' });
-      console.error("html2canvas error:", err);
-    });
+    html2canvas(receiptElement, { scale: 3, useCORS: true, backgroundColor: '#ffffff' })
+      .then((canvas) => {
+        const link = document.createElement('a');
+        link.download = `receipt-${selectedSale.id}.png`;
+        link.href = canvas.toDataURL('image/png', 1.0);
+        link.click();
+        toast.success('Image downloaded!', { id: 'download-toast' });
+      }).catch(err => {
+        toast.error('Could not generate image.', { id: 'download-toast' });
+        console.error("html2canvas error:", err);
+      });
   };
 
-  // --- Business Info for Receipt ---
   const businessInfo = {
-    name: "Baber Market Landhi no 3 1/2",
-    address: "Super Market, Karachi",
-    phone: "0321-3630916, 0300-2559902",
-    owner: "Saleem Ullah",
-    whatsapp: "0333-7304781"
+    name: "Saleem Staionery Shop", address: "Qazafi Town, Karachi",
+    phone: "03182014863", owner: "Saleem Ullah", whatsapp: "0333-7304781"
   };
 
   return (
