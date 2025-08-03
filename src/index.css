@@ -1,43 +1,19 @@
 /* src/index.css */
 
-/* Tailwind CSS ki base styles */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* --- Custom Scrollbar Styles (Aapka original code) --- */
-/* Light Mode Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
-}
-::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
+/* --- Custom Scrollbar Styles --- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
+html.dark ::-webkit-scrollbar-track { background: #2d3748; }
+html.dark ::-webkit-scrollbar-thumb { background: #718096; }
+html.dark ::-webkit-scrollbar-thumb:hover { background: #a0aec0; }
 
-/* Dark Mode Scrollbar */
-html.dark ::-webkit-scrollbar-track {
-  background: #2d3748; /* gray-800 */
-}
-html.dark ::-webkit-scrollbar-thumb {
-  background: #718096; /* gray-500 */
-}
-html.dark ::-webkit-scrollbar-thumb:hover {
-  background: #a0aec0; /* gray-400 */
-}
-
-
-/* --- NAYA, BEHTAR PRINT & MODAL STYLES --- */
-
-/* React Modal ke liye base styles */
+/* --- React Modal Styles --- */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -49,52 +25,24 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Add a little padding for smaller screens */
   padding: 1rem;
 }
+.modal-content { outline: none; }
 
-.modal-content {
-  /* This ensures the modal doesn't have default browser outlines */
-  outline: none;
-}
-
-/* Print ke liye zaroori styles */
+/* --- NAYA AUR RELIABLE PRINT CODE --- */
 @media print {
-  /* Page ke default margins aur padding khatam kar dein */
-  body {
-    margin: 0;
-    padding: 0;
+  /* Print ke waqt poori body ko chupa do */
+  body > * {
+    display: none !important;
   }
   
-  /* Har cheez ko hide kar dein siwaye hamare print container ke */
-  body > *:not(.print-container) {
-    display: none !important;
-  }
-
-  /* Print container ko poori jagah de dein */
-  .print-container {
+  /* Sirf uss container ko dikhao jisko print karna hai */
+  .hidden-for-screen {
     display: block !important;
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
   }
+}
 
-  /* Modal ke overlay (background) ko print mein ghayab kar dein */
-  .modal-overlay {
-    background-color: transparent !important;
-    position: static !important; /* Let the content flow naturally */
-  }
-
-  /* Print ke waqt buttons waghera ko hide karne ke liye utility class */
-  .print\:hidden {
-    display: none !important;
-  }
-
-  /* Page ka size aur margin set karein */
-  @page {
-    size: auto; /* Printer ke default paper size ko use karega */
-    margin: 5mm; /* Chaaron taraf se 5mm ka margin */
-  }
+/* Screen par is container ko hamesha chupa kar rakho */
+.hidden-for-screen {
+  display: none;
 }
