@@ -84,9 +84,13 @@ function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales }) {
       }).catch(err => { toast.error('Could not generate image.', { id: 'download-toast' }); });
   };
 
+  // --- FIX: COMMA ADDED BETWEEN PROPERTIES ---
   const businessInfo = {
-    name: "Saleem Stationery, address: "Qazafi Town",
-    phone: "03182014863", owner: "Saleem Ullah", whatsapp: "0333-7304781"
+    name: "Saleem Stationery",
+    address: "Qazafi Town",
+    phone: "03182014863",
+    owner: "Saleem Ullah",
+    whatsapp: "0333-7304781"
   };
 
   return (
