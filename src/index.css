@@ -1,4 +1,36 @@
-/* ... (Aapka purana CSS code yahan rahega) ... */
+/* --- YEH 3 LINES SABSE ZAROORI HAIN AUR HAMESHA UPAR HONI CHAHIYE --- */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- Iske neeche aapka baaki ka custom CSS aayega --- */
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-track {
+  background: #2d3748;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #718096;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
 
 /* Naye, Behtar Modal ki Styling */
 .modal-overlay {
@@ -28,13 +60,23 @@
   background: #1f2937; /* bg-gray-800 */
 }
 
-/* Print ke waqt, sirf receipt dikhe */
-.hidden-for-screen {
-    display: none;
-}
 
+/* "Smart Print" ka code */
 @media print {
-  .hidden-for-print {
-    display: none;
+  body * {
+    visibility: hidden;
+  }
+  .printable-receipt, .printable-receipt * {
+    visibility: visible;
+  }
+  .printable-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  @page {
+    size: auto;
+    margin: 5mm;
   }
 }
