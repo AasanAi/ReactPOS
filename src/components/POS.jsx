@@ -23,6 +23,12 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
     const [searchTerm, setSearchTerm] = useState('');
     const receiptRef = useRef();
 
+    // --- FIX: HOOK MOVED TO TOP LEVEL ---
+    const handlePrintReceipt = useReactToPrint({
+        content: () => receiptRef.current,
+    });
+    
+    // Early return for loading state
     if (!customers || !products) {
         return <div className="text-center p-10 dark:text-gray-400">Loading POS...</div>;
     }
@@ -111,8 +117,6 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
         closePaymentModal();
         setIsReceiptModalOpen(true);
     };
-    
-    const handlePrintReceipt = useReactToPrint({ content: () => receiptRef.current });
 
     const handleDownloadImage = () => {
         const receiptElement = receiptRef.current;
@@ -145,7 +149,7 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
         const newQty = parseInt(editQty) || 1;
         const newPrice = parseFloat(editPrice) || 0;
         const newDiscount = parseFloat(editDiscount) || 0;
-        if (newQty > productInStock.quantity) {
+        if (productInStock && newQty > productInStock.quantity) {
             return toast.error(`Cannot add more than available stock (${productInStock.quantity})`);
         }
         if (newQty <= 0 || newPrice < 0 || newDiscount < 0) {
@@ -161,7 +165,7 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
 
     const filteredProducts = products.filter(product =>
         (product.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (product.barcode.includes(searchTerm))
+        (product.barcode && product.barcode.includes(searchTerm))
     );
       
     const cartSubtotal = calculateTotal();
