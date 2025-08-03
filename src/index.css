@@ -1,10 +1,15 @@
+/* src/index.css */
+
+/* Tailwind CSS ki base styles */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Custom scrollbar */
+/* --- Custom Scrollbar Styles (Aapka original code) --- */
+/* Light Mode Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: #f1f1f1;
@@ -18,41 +23,78 @@
   background: #555;
 }
 
-/* Dark mode scrollbar */
-.dark ::-webkit-scrollbar-track {
-  background: #2d3748;
+/* Dark Mode Scrollbar */
+html.dark ::-webkit-scrollbar-track {
+  background: #2d3748; /* gray-800 */
 }
-.dark ::-webkit-scrollbar-thumb {
-  background: #718096;
+html.dark ::-webkit-scrollbar-thumb {
+  background: #718096; /* gray-500 */
 }
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #a0aec0;
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0; /* gray-400 */
 }
 
 
-/* --- YEH NAYA, SABSE ZAROORI "SMART PRINT" CODE HAI --- */
+/* --- NAYA, BEHTAR PRINT & MODAL STYLES --- */
+
+/* React Modal ke liye base styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Add a little padding for smaller screens */
+  padding: 1rem;
+}
+
+.modal-content {
+  /* This ensures the modal doesn't have default browser outlines */
+  outline: none;
+}
+
+/* Print ke liye zaroori styles */
 @media print {
-  /* Print ke waqt, page par sab kuch chupa do */
-  body * {
-    visibility: hidden;
+  /* Page ke default margins aur padding khatam kar dein */
+  body {
+    margin: 0;
+    padding: 0;
   }
   
-  /* Sirf "printable-receipt" class wali cheez aur uske andar ki cheezon ko dikhao */
-  .printable-receipt, .printable-receipt * {
-    visibility: visible;
+  /* Har cheez ko hide kar dein siwaye hamare print container ke */
+  body > *:not(.print-container) {
+    display: none !important;
   }
-  
-  /* "printable-receipt" ko page ke bilkul shuru mein le aao */
-  .printable-receipt {
+
+  /* Print container ko poori jagah de dein */
+  .print-container {
+    display: block !important;
     position: absolute;
-    left: 0;
     top: 0;
-    width: 100%; /* Take full width to avoid weird scaling */
+    left: 0;
+    width: 100%;
+    height: 100%;
   }
-  
-  /* Browser ke default headers/footers (URL, date, etc.) hatao */
+
+  /* Modal ke overlay (background) ko print mein ghayab kar dein */
+  .modal-overlay {
+    background-color: transparent !important;
+    position: static !important; /* Let the content flow naturally */
+  }
+
+  /* Print ke waqt buttons waghera ko hide karne ke liye utility class */
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Page ka size aur margin set karein */
   @page {
-    size: auto;
-    margin: 5mm; /* Page ke kinaron par chota sa margin rakhein */
+    size: auto; /* Printer ke default paper size ko use karega */
+    margin: 5mm; /* Chaaron taraf se 5mm ka margin */
   }
 }

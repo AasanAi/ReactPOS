@@ -8,104 +8,116 @@ import { FaTrashAlt } from 'react-icons/fa';
 import { FiPrinter, FiDownload, FiX } from 'react-icons/fi';
 import { useReactToPrint } from 'react-to-print';
 import html2canvas from 'html2canvas';
-import ModernReceipt from './ModernReceipt';
+import ModernReceipt from './ModernReceipt'; // Make sure this path is correct
+
+// Set the app element for react-modal to avoid screen reader issues
+Modal.setAppElement('#root');
 
 function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
   const [selectedSale, setSelectedSale] = useState(null);
   const receiptRef = useRef();
-  
-  // HOOK KO TOP-LEVEL PAR LAAYA GAYA HAI
-  const handlePrintReceipt = useReactToPrint({
+
+  // Define the print handler hook at the top level
+  const handlePrintReceipt = useReactTo-print({
     content: () => receiptRef.current,
+    // This function runs after printing is done or cancelled
+    onAfterPrint: () => toast('Printing process finished.', { icon: '📄' }),
   });
 
   if (!salesHistory) {
     return <div className="text-center p-10 dark:text-gray-400">Loading sales report...</div>;
   }
 
+  // --- Data Filtering Logic ---
   const filteredSales = salesHistory
     .filter(sale => {
-      if (!sale.date) return false; // Guard against sales with no date
+      if (!sale.date) return false;
       const saleDate = new Date(sale.date);
       const now = new Date();
-      if (filter === "today") return saleDate.toDateString() === now.toDateString();
-      if (filter === "all") return true;
-      return true; // You can add more filters here later
+      if (filter === "today") {
+        return saleDate.toDateString() === now.toDateString();
+      }
+      return true; // "all" case
     })
     .filter(sale =>
       (sale.id ? sale.id.toString().toLowerCase() : '').includes(searchTerm.toLowerCase())
     );
   
+  // --- Bulk Delete Logic ---
   const handleDeleteFiltered = () => {
     if (filteredSales.length === 0) {
-        return toast.error("There are no sales to delete in the current filter.");
+      return toast.error("There are no sales to delete in the current filter.");
     }
     if (window.confirm(`Are you sure you want to delete all ${filteredSales.length} currently filtered sales? This action cannot be undone.`)) {
-        const confirmationText = "DELETE";
-        const userInput = prompt(`To confirm, please type "${confirmationText}"`);
-        if (userInput === confirmationText) {
-            onDeleteFilteredSales(filteredSales);
-        } else {
-            toast.error("Confirmation text did not match. Deletion cancelled.");
-        }
+      const confirmationText = "DELETE";
+      const userInput = prompt(`To confirm, please type "${confirmationText}"`);
+      if (userInput === confirmationText) {
+        onDeleteFilteredSales(filteredSales);
+      } else if (userInput !== null) { // User didn't just cancel the prompt
+        toast.error("Confirmation text did not match. Deletion cancelled.");
+      }
     }
   };
 
-  const exportCSV = (data) => {
-    if (!data || data.length === 0) { toast.error("No data to export."); return; }
-    const headers = ['Sale ID', 'Date', 'Customer', 'Payment Type', 'Total Amount', 'Amount Paid', 'Profit'];
-    const csvData = data.map(sale => [
-      sale.id, new Date(sale.date).toLocaleString(), sale.customerName || 'Walk-in',
-      sale.paymentType || 'N/A', sale.totalAmount || 0, sale.amountPaid || 0, sale.totalProfit || 0
-    ]);
-    const csvContent = [headers.join(','), ...csvData.map(e => e.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `sales_report_${new Date().toISOString()}.csv`;
-    link.click();
-  };
-
-  const exportExcel = (data) => {
-    if (!data || data.length === 0) { toast.error("No data to export."); return; }
-    const worksheet = utils.json_to_sheet(
-      data.map(sale => ({
-        "Sale ID": sale.id, "Date": new Date(sale.date).toLocaleString(), "Customer": sale.customerName || 'Walk-in',
-        "Payment Type": sale.paymentType || 'N/A', "Total Amount": sale.totalAmount || 0, "Amount Paid": sale.amountPaid || 0, "Profit": sale.totalProfit || 0,
-      }))
-    );
+  // --- Export Logic (CSV & Excel) ---
+  const exportToExcel = (data) => {
+    if (!data || data.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+    const worksheetData = data.map(sale => ({
+      "Sale ID": sale.id,
+      "Date": new Date(sale.date).toLocaleString(),
+      "Customer": sale.customerName || 'Walk-in',
+      "Payment Type": sale.paymentType || 'N/A',
+      "Total Amount": sale.totalAmount || 0,
+      "Amount Paid": sale.amountPaid || 0,
+      "Profit": sale.totalProfit || 0,
+    }));
+    const worksheet = utils.json_to_sheet(worksheetData);
     const workbook = utils.book_new();
     utils.book_append_sheet(workbook, worksheet, "Sales Report");
-    writeFile(workbook, `sales_report_${new Date().toISOString()}.xlsx`);
+    writeFile(workbook, `sales_report_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
-  
+
+  // --- Receipt Download as Image Logic ---
   const handleDownloadImage = () => {
     const receiptElement = receiptRef.current;
     if (!receiptElement) return;
-    toast.loading('Generating Image...');
-    html2canvas(receiptElement, { scale: 3, backgroundColor: '#ffffff', useCORS: true })
-      .then((canvas) => {
-        const image = canvas.toDataURL('image/png', 1.0);
-        const link = document.createElement('a');
-        link.href = image; link.download = `receipt-${selectedSale.id}.png`; link.click();
-        toast.dismiss(); toast.success('Image downloaded!');
-      }).catch(err => { toast.dismiss(); toast.error('Could not generate image.'); });
+
+    toast.loading('Generating Image...', { id: 'download-toast' });
+    html2canvas(receiptElement, {
+      scale: 3, // Higher scale for better quality
+      useCORS: true, // Important for external resources if any
+      backgroundColor: '#ffffff',
+    }).then((canvas) => {
+      const link = document.createElement('a');
+      link.download = `receipt-${selectedSale.id}.png`;
+      link.href = canvas.toDataURL('image/png', 1.0);
+      link.click();
+      toast.success('Image downloaded!', { id: 'download-toast' });
+    }).catch(err => {
+      toast.error('Could not generate image.', { id: 'download-toast' });
+      console.error("html2canvas error:", err);
+    });
   };
-  
+
+  // --- Business Info for Receipt ---
   const businessInfo = {
-      name: "Baber Market Landhi no 3 1/2",
-      address: "Super Market, Karachi",
-      phone: "0321-3630916, 0300-2559902",
-      owner: "Saleem Ullah",
-      whatsapp: "0333-7304781"
+    name: "Baber Market Landhi no 3 1/2",
+    address: "Super Market, Karachi",
+    phone: "0321-3630916, 0300-2559902",
+    owner: "Saleem Ullah",
+    whatsapp: "0333-7304781"
   };
 
   return (
     <div className="container mx-auto px-6 py-8">
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">Sales Report</h2>
+        {/* --- Controls: Search, Filter, Export --- */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
             <input type="text" placeholder="Search by Sale ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full sm:w-auto bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"/>
@@ -115,12 +127,12 @@ function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales }) {
             </select>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => exportCSV(filteredSales)} className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">Export CSV</button>
-            <button onClick={() => exportExcel(filteredSales)} className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">Export Excel</button>
+            <button onClick={() => exportToExcel(filteredSales)} className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">Export Excel</button>
             <button onClick={handleDeleteFiltered} className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-2"><FaTrashAlt />Delete Filtered</button>
           </div>
         </div>
 
+        {/* --- Sales Data Table --- */}
         <div className="overflow-x-auto max-h-[70vh]">
           <table className="min-w-full table-auto text-sm">
             <thead className="bg-gray-100 dark:bg-gray-700 sticky top-0">
@@ -160,16 +172,25 @@ function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales }) {
         </div>
       </div>
 
-      <Modal isOpen={!!selectedSale} onRequestClose={() => setSelectedSale(null)} contentLabel="Sale Receipt Modal" className="bg-transparent" overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      {/* --- Receipt Modal --- */}
+      <Modal
+        isOpen={!!selectedSale}
+        onRequestClose={() => setSelectedSale(null)}
+        contentLabel="Sale Receipt Modal"
+        className="modal-content" // Custom class for styling
+        overlayClassName="modal-overlay" // Custom class for styling
+      >
         {selectedSale && (
-            <div className="bg-gray-100 p-4 rounded-lg shadow-xl relative">
-                <ModernReceipt ref={receiptRef} sale={selectedSale} businessInfo={businessInfo} />
-                <div className="flex justify-center gap-4 mt-4">
-                    <button onClick={handlePrintReceipt} className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"><FiPrinter /> Print</button>
-                    <button onClick={handleDownloadImage} className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"><FiDownload /> Download</button>
-                    <button onClick={() => setSelectedSale(null)} className="flex items-center gap-2 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"><FiX /> Close</button>
-                </div>
+          <div className="bg-gray-100 p-4 rounded-lg shadow-xl relative w-auto">
+            {/* The ref is attached to the component that will be printed */}
+            <ModernReceipt ref={receiptRef} sale={selectedSale} businessInfo={businessInfo} />
+            
+            <div className="flex justify-center gap-4 mt-4 print:hidden">
+              <button onClick={handlePrintReceipt} className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"><FiPrinter /> Print</button>
+              <button onClick={handleDownloadImage} className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"><FiDownload /> Download</button>
+              <button onClick={() => setSelectedSale(null)} className="flex items-center gap-2 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"><FiX /> Close</button>
             </div>
+          </div>
         )}
       </Modal>
     </div>
