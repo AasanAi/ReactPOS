@@ -16,12 +16,8 @@ function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
   const [selectedSale, setSelectedSale] = useState(null);
-  
-  // --- NAYA AUR SAHI PRINT SETUP ---
-  // 1. Ref ab page par chupi hui (hidden) receipt par lagega.
-  const printableReceiptRef = useRef(); 
+  const printableReceiptRef = useRef();
 
-  // 2. Print hook ab is ref ko print karega.
   const handlePrint = useReactToPrint({
     content: () => printableReceiptRef.current,
     documentTitle: `Receipt-${selectedSale?.id || ''}`,
@@ -41,9 +37,38 @@ function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales }) {
       return true;
     })
     .filter(sale => (sale.id ? sale.id.toString().toLowerCase() : '').includes(searchTerm.toLowerCase()));
-  
-  const handleDeleteFiltered = () => { /* ... existing code, no change ... */ };
-  const exportToExcel = (data) => { /* ... existing code, no change ... */ };
+
+  const handleDeleteFiltered = () => {
+    if (filteredSales.length === 0) {
+        return toast.error("There are no sales to delete in the current filter.");
+    }
+    if (window.confirm(`Are you sure you want to delete all ${filteredSales.length} currently filtered sales? This action cannot be undone.`)) {
+        const confirmationText = "DELETE";
+        const userInput = prompt(`To confirm, please type "${confirmationText}"`);
+        if (userInput === confirmationText) {
+            onDeleteFilteredSales(filteredSales);
+        } else if (userInput !== null) {
+            toast.error("Confirmation text did not match. Deletion cancelled.");
+        }
+    }
+  };
+
+  const exportToExcel = (data) => {
+    if (!data || data.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+    const worksheetData = data.map(sale => ({
+      "Sale ID": sale.id, "Date": new Date(sale.date).toLocaleString(),
+      "Customer": sale.customerName || 'Walk-in', "Payment Type": sale.paymentType || 'N/A',
+      "Total Amount": sale.totalAmount || 0, "Amount Paid": sale.amountPaid || 0,
+      "Profit": sale.totalProfit || 0,
+    }));
+    const worksheet = utils.json_to_sheet(worksheetData);
+    const workbook = utils.book_new();
+    utils.book_append_sheet(workbook, worksheet, "Sales Report");
+    writeFile(workbook, `sales_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
 
   const handleDownloadImage = () => {
     const receiptElement = printableReceiptRef.current;
@@ -66,16 +91,13 @@ function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales }) {
 
   return (
     <div className="container mx-auto px-6 py-8">
-      {/* --- NAYA, CHUPA HUA COMPONENT SIRF PRINT KE LIYE --- */}
       <div className="hidden-for-screen">
         <ModernReceipt ref={printableReceiptRef} sale={selectedSale} businessInfo={businessInfo} />
       </div>
 
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">Sales Report</h2>
-        {/* --- Controls Section --- */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-            {/* ... search, filter, export buttons ... */}
             <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
                 <input type="text" placeholder="Search by Sale ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full sm:w-auto bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"/>
                 <select value={filter} onChange={(e) => setFilter(e.target.value)} className="w-full sm:w-auto bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
@@ -89,11 +111,19 @@ function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales }) {
             </div>
         </div>
 
-        {/* --- Sales Data Table --- */}
         <div className="overflow-x-auto max-h-[70vh]">
             <table className="min-w-full table-auto text-sm">
                 <thead className="bg-gray-100 dark:bg-gray-700 sticky top-0">
-                    {/* Table headers */}
+                    <tr>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Sale ID</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Date</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Customer</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Payment</th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Total</th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Paid</th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Profit</th>
+                        <th className="px-4 py-3 text-center font-semibold text-gray-600 dark:text-gray-300">Actions</th>
+                    </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredSales.length > 0 ? (
@@ -120,7 +150,6 @@ function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales }) {
         </div>
       </div>
 
-      {/* --- MODAL SIRF RECEIPT DIKHANE KE LIYE HAI, PRINT KE LIYE NAHI --- */}
       <Modal
         isOpen={!!selectedSale}
         onRequestClose={() => setSelectedSale(null)}
@@ -130,10 +159,8 @@ function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales }) {
       >
         {selectedSale && (
           <div className="bg-gray-100 p-4 rounded-lg shadow-xl relative w-auto">
-            {/* Yahan receipt ko ref ki zaroorat nahi */}
             <ModernReceipt sale={selectedSale} businessInfo={businessInfo} />
-            
-            <div className="flex justify-center gap-4 mt-4">
+            <div className="flex justify-center gap-4 mt-4 print:hidden">
               <button onClick={handlePrint} className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"><FiPrinter /> Print</button>
               <button onClick={handleDownloadImage} className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"><FiDownload /> Download</button>
               <button onClick={() => setSelectedSale(null)} className="flex items-center gap-2 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"><FiX /> Close</button>
