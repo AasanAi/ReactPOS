@@ -1,3 +1,4 @@
+// Is file mein ab koi 'import' istemal nahi ho raha.
 const CACHE_NAME = 'aasan-pos-cache-v1';
 const urlsToCache = [
   '/',
@@ -6,14 +7,13 @@ const urlsToCache = [
   '/favicon.ico',
   '/logo192.png',
   '/logo512.png'
-  // Yahan aapke main JS aur CSS files ke path aayenge jab app build hogi
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Opened cache');
+        console.log('Opened cache and caching basic assets');
         return cache.addAll(urlsToCache);
       })
   );
@@ -21,16 +21,11 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Network falling back to cache strategy
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      }
-    )
+    fetch(event.request).catch(() => {
+      return caches.match(event.request);
+    })
   );
 });
 
