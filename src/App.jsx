@@ -60,7 +60,7 @@ function MainApp() {
 
   useEffect(() => {
     if (userRole === 'admin' && activeTab === '') { setActiveTab('dashboard'); } 
-    else if (userRole === 'cashier') { setActiveTab('pos'); }
+    else if (userRole === 'cashier' && activeTab === '') { setActiveTab('pos'); }
   }, [userRole, activeTab]);
 
   const handleAddProduct = useCallback(async (productToAdd) => { if (!shopOwnerId) return; try { const docRef = await addDoc(collection(db, `users/${shopOwnerId}/products`), productToAdd); setProducts(prev => [...prev, { id: docRef.id, ...productToAdd }]); toast.success("Product added successfully!"); } catch (error) { toast.error("Failed to add product."); } }, [shopOwnerId]);
@@ -119,12 +119,50 @@ function MainApp() {
   // --- Settings Function ---
   const handleClearAllData = useCallback(async () => { if (!shopOwnerId) return; const confirmationText = "DELETE"; const userInput = prompt(`This will delete ALL data. Type "${confirmationText}" to confirm.`); if (userInput !== confirmationText) { if (userInput !== null) { toast.error("Confirmation text did not match."); } return; } toast.loading("Clearing all data..."); try { const batch = writeBatch(db); const collectionsToDelete = ['products', 'sales', 'customers']; for (const coll of collectionsToDelete) { const snapshot = await getDocs(collection(db, `users/${shopOwnerId}/${coll}`)); snapshot.forEach(document => batch.delete(document.ref)); } await batch.commit(); toast.dismiss(); toast.success("All data has been cleared."); setProducts([]); setSalesHistory([]); setCustomers([]); } catch (error) { toast.dismiss(); console.error("Error clearing all data:", error); toast.error("Failed to clear data."); } }, [shopOwnerId]);
 
-  if (dataIsLoading) return <LoadingSpinner />;
+   if (dataIsLoading) return <LoadingSpinner />;
 
+  // ✅ NEW: Cashier version with POS and Sales Report tab
   if (userRole === 'cashier') {
-    return ( <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-900"> <header className="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center"> <h1 className="text-xl font-bold text-teal-600 dark:text-teal-400">Aasan POS - Cashier</h1> <button onClick={logout} className="flex items-center space-x-2 text-red-500 hover:text-red-700 font-semibold transition-colors"> <FiLogOut /> <span>Logout</span> </button> </header> <main className="flex-grow"> <POS products={products} customers={customers} onProcessSale={handleProcessSale} cart={cart} setCart={setCart} /> </main> </div> );
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans flex flex-col">
+      <header className="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center">
+        <h1 className="text-xl font-bold text-teal-600 dark:text-teal-400">Aasan POS - Cashier</h1>
+        <button onClick={logout} className="flex items-center space-x-2 text-red-500 hover:text-red-700 font-semibold transition-colors">
+          <FiLogOut />
+          <span>Logout</span>
+        </button>
+      </header>
+
+      {/* Tabs for POS and Inventory */}
+      <div className="bg-gray-200 dark:bg-gray-700 p-2 flex space-x-4 justify-center">
+        <button onClick={() => setActiveTab("pos")} className={`px-4 py-2 rounded ${activeTab === "pos" ? "bg-teal-600 text-white" : "bg-white text-teal-600"}`}>POS</button>
+        <button onClick={() => setActiveTab("inventory")} className={`px-4 py-2 rounded ${activeTab === "inventory" ? "bg-teal-600 text-white" : "bg-white text-teal-600"}`}>Inventory</button>
+      </div>
+
+      <main className="flex-grow animate-fade-in-up p-4">
+        {activeTab === 'pos' && (
+          <POS
+            products={products}
+            customers={customers}
+            onProcessSale={handleProcessSale}
+            cart={cart}
+            setCart={setCart}
+          />
+        )}
+        {activeTab === 'inventory' && (
+          <Inventory
+            products={products}
+            onAddProduct={handleAddProduct}
+            onUpdateProduct={handleUpdateProduct}
+            onDeleteProduct={handleDeleteProduct}
+          />
+        )}
+      </main>
+      </div>
+    );
   }
 
+  // Admin view remains unchanged
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans flex flex-col">
       <Header activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -144,5 +182,10 @@ function MainApp() {
 export default function App() {
   const { currentUser, loading } = useAuth();
   if (loading) return <LoadingSpinner />;
-  return ( <> <Toaster position="top-center" reverseOrder={false} toastOptions={{ style: { background: '#333', color: '#fff' } }} /> {currentUser ? <MainApp /> : <Login />} </> );
+  return (
+    <>
+      <Toaster position="top-center" reverseOrder={false} toastOptions={{ style: { background: '#333', color: '#fff' } }} />
+      {currentUser ? <MainApp /> : <Login />}
+    </>
+  );
 }

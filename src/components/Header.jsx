@@ -30,7 +30,7 @@ function Header({ activeTab, setActiveTab }) {
   if (userRole === 'admin') {
     tabs = ['dashboard', 'pos', 'inventory', 'customers', 'sales report', 'settings'];
   } else if (userRole === 'cashier') {
-    tabs = ['pos'];
+    tabs = ['pos', 'sales report'];
   }
 
   const handleLogout = async () => {
