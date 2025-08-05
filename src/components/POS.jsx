@@ -4,8 +4,9 @@ import Modal from 'react-modal';
 import { FaPencilAlt } from 'react-icons/fa';
 import { FiSearch } from 'react-icons/fi';
 import html2canvas from 'html2canvas';
+import { useAuth } from '../context/AuthContext'; // <-- Step 1: AuthContext ko import kiya
 
-// Receipt Content Component
+// Receipt Content Component (Is mein koi tabdeeli nahi)
 function ReceiptContent({ data }) {
   if (!data) return null;
   return (
@@ -63,14 +64,14 @@ function ReceiptContent({ data }) {
       </div>
       <div className="text-center mt-4 pt-2 border-t border-dashed border-black text-xs">
         <p>Thank you for your business!</p>
-        <p className="font-semibold">Powered by Saleem Ullah</p>
-        <p>WhatsApp: 0333-7304781</p>
       </div>
     </div>
   );
 }
 
+
 function POS({ products, customers, onProcessSale, cart, setCart }) {
+  const { userRole } = useAuth(); // <-- Step 2: User ka role hasil kiya
   const [selectedCustomer, setSelectedCustomer] = useState('walk-in');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [tenderedAmount, setTenderedAmount] = useState('');
@@ -223,6 +224,7 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
 
   return (
     <div className="grid grid-cols-12 gap-4 p-4 h-[calc(100vh-65px)] bg-gray-100 dark:bg-gray-900">
+      {/* Left Column: Products (No Change) */}
       <div className="col-span-12 lg:col-span-7 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg flex flex-col">
         <div className="relative mb-4">
           <FiSearch className="absolute top-1/2 left-4 -translate-y-1/2 text-gray-400" size={20} />
@@ -244,10 +246,56 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
           </div>
         </div>
       </div>
+      
+      {/* Right Column: Cart (Is mein tabdeeli ki hai) */}
       <div className="col-span-12 lg:col-span-5 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg flex flex-col">
-        <h3 className="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4 border-b pb-2 dark:border-gray-700">Shopping Cart</h3>
-        {cart.length > 0 ? (<><div className="flex-grow overflow-y-auto space-y-4 pr-2">{cart.map((item) => (<div key={item.barcode} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg"><div><p className="font-semibold text-gray-800 dark:text-gray-100">{item.name}</p><div className="flex items-center gap-3 mt-1"><button onClick={() => decreaseQuantity(item.barcode)} className="bg-gray-200 dark:bg-gray-600 dark:text-gray-100 h-7 w-7 rounded-full font-bold flex items-center justify-center transition-transform hover:scale-110">-</button><span className="dark:text-gray-200 text-lg w-8 text-center">{item.quantity}</span><button onClick={() => increaseQuantity(item.barcode)} className="bg-gray-200 dark:bg-gray-600 dark:text-gray-100 h-7 w-7 rounded-full font-bold flex items-center justify-center transition-transform hover:scale-110">+</button><button onClick={() => openEditModal(item)} className="text-gray-400 hover:text-blue-500 ml-2 transition-colors"><FaPencilAlt size={14} /></button></div></div><div className="flex items-center gap-4"><p className="font-bold text-lg text-gray-800 dark:text-gray-100">PKR {(item.price * item.quantity).toFixed(2)}</p><button onClick={() => removeFromCart(item.barcode)} className="text-red-400 hover:text-red-600 transition-colors">✕</button></div></div>))}</div><div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700"><div className="flex justify-between items-center text-xl font-bold"><span className="dark:text-gray-100">Total:</span><span className="text-4xl text-emerald-600 dark:text-emerald-400">PKR {calculateTotal().toFixed(2)}</span></div><button onClick={openPaymentModal} className="w-full mt-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-4 rounded-lg font-bold text-xl hover:from-emerald-600 hover:to-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl">PROCEED TO PAYMENT</button></div></>) : (<div className="flex-grow flex flex-col justify-center items-center text-center"><p className="text-gray-500 dark:text-gray-400 text-lg">Your cart is empty.</p><p className="text-gray-400 dark:text-gray-500">Select a product to begin.</p></div>)}
+        {cart.length > 0 ? (
+          <>
+            {/* --- NAYA SECTION: YEH AB HAMESHA UPAR RAHEGA --- */}
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
+              <div className="flex justify-between items-center text-xl font-bold mb-4">
+                <span className="dark:text-gray-100">Total:</span>
+                <span className="text-4xl text-emerald-600 dark:text-emerald-400">PKR {calculateTotal().toFixed(2)}</span>
+              </div>
+              {/* --- ROLE CHECK WALA BUTTON --- */}
+              {(userRole === 'admin' || userRole === 'cashier') && (
+                  <button onClick={openPaymentModal} className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-4 rounded-lg font-bold text-xl hover:from-emerald-600 hover:to-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl">
+                      PROCEED TO PAYMENT
+                  </button>
+              )}
+            </div>
+
+            {/* --- PURANA SECTION: YEH AB NEECHAY SCROLL HOGA --- */}
+            <div className="flex-grow overflow-y-auto space-y-4 pr-2">
+              <h3 className="text-xl font-bold text-gray-700 dark:text-gray-200 mb-2">Shopping Cart</h3>
+              {cart.map((item) => (
+                <div key={item.barcode} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg">
+                  <div>
+                    <p className="font-semibold text-gray-800 dark:text-gray-100">{item.name}</p>
+                    <div className="flex items-center gap-3 mt-1">
+                      <button onClick={() => decreaseQuantity(item.barcode)} className="bg-gray-200 dark:bg-gray-600 dark:text-gray-100 h-7 w-7 rounded-full font-bold flex items-center justify-center transition-transform hover:scale-110">-</button>
+                      <span className="dark:text-gray-200 text-lg w-8 text-center">{item.quantity}</span>
+                      <button onClick={() => increaseQuantity(item.barcode)} className="bg-gray-200 dark:bg-gray-600 dark:text-gray-100 h-7 w-7 rounded-full font-bold flex items-center justify-center transition-transform hover:scale-110">+</button>
+                      <button onClick={() => openEditModal(item)} className="text-gray-400 hover:text-blue-500 ml-2 transition-colors"><FaPencilAlt size={14} /></button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <p className="font-bold text-lg text-gray-800 dark:text-gray-100">PKR {(item.price * item.quantity).toFixed(2)}</p>
+                    <button onClick={() => removeFromCart(item.barcode)} className="text-red-400 hover:text-red-600 transition-colors">✕</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="flex-grow flex flex-col justify-center items-center text-center">
+            <p className="text-gray-500 dark:text-gray-400 text-lg">Your cart is empty.</p>
+            <p className="text-gray-400 dark:text-gray-500">Select a product to begin.</p>
+          </div>
+        )}
       </div>
+
+      {/* --- Baaki Modals mein koi tabdeeli nahi --- */}
       <Modal isOpen={isPaymentModalOpen} onRequestClose={closePaymentModal} contentLabel="Payment Modal" className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md mx-auto mt-24" overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center">
         <h2 className="text-2xl font-bold mb-4 dark:text-gray-100">Finalize Sale</h2>
         <div className="mb-4"><label htmlFor="customer" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Customer</label><select id="customer" value={selectedCustomer} onChange={(e) => setSelectedCustomer(e.target.value)} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"><option value="walk-in">Walk-in Customer (Cash Sale)</option>{customers.map(c => <option key={c.id} value={c.id}>{c.name} - {c.phone}</option>)}</select></div>
@@ -265,4 +313,5 @@ function POS({ products, customers, onProcessSale, cart, setCart }) {
     </div>
   );
 }
+
 export default POS;
