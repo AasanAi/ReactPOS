@@ -1,5 +1,4 @@
 // src/components/ModernReceipt.jsx
-
 import React from 'react';
 
 const ModernReceipt = React.forwardRef(({ sale, businessInfo }, ref) => {
@@ -10,9 +9,11 @@ const ModernReceipt = React.forwardRef(({ sale, businessInfo }, ref) => {
   const calculateTotalDiscount = (items) => items.reduce((sum, item) => sum + ((item.discount || 0) * item.quantity), 0);
   
   const subtotal = calculateSubtotal(sale.items);
-  const totalDiscount = calculateTotalDiscount(sale.items);
-  const grandTotal = subtotal - totalDiscount;
-  const change = sale.amountPaid - grandTotal;
+  const totalItemDiscount = calculateTotalDiscount(sale.items);
+  const additionalDiscount = sale.additionalDiscount || 0;
+  const finalSubtotal = subtotal - totalItemDiscount; // Subtotal after item discounts
+  const finalGrandTotal = finalSubtotal - additionalDiscount;
+  const change = sale.amountPaid - finalGrandTotal;
 
   return (
     <div ref={ref} className="bg-white text-gray-800 font-sans p-6 w-[320px] shadow-lg rounded-lg">
@@ -58,12 +59,22 @@ const ModernReceipt = React.forwardRef(({ sale, businessInfo }, ref) => {
           <span>PKR {subtotal.toFixed(2)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-600">Total Discount:</span>
-          <span className="text-red-500">- PKR {totalDiscount.toFixed(2)}</span>
+          <span className="text-gray-600">Item Discounts:</span>
+          <span className="text-red-500">- PKR {totalItemDiscount.toFixed(2)}</span>
         </div>
+        {/* --- NAYA: Show Additional Discount on Receipt --- */}
+        {additionalDiscount > 0 && (
+          <div className="flex justify-between">
+            <span className="text-gray-600">Additional Discount:</span>
+            <span className="text-red-500">- PKR {additionalDiscount.toFixed(2)}</span>
+          </div>
+        )}
+        {/* --- END NAYA --- */}
         <div className="flex justify-between text-base font-bold pt-2 border-t mt-2">
+          {/* --- NAYA: Update Grand Total on Receipt --- */}
           <span>Grand Total:</span>
-          <span>PKR {grandTotal.toFixed(2)}</span>
+          <span>PKR {finalGrandTotal.toFixed(2)}</span>
+          {/* --- END NAYA --- */}
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Amount Paid:</span>
