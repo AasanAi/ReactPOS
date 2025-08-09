@@ -1,3 +1,5 @@
+// src/context/AuthContext.js
+
 import React, { useContext, useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -9,6 +11,7 @@ import {
     signOut, 
     onAuthStateChanged,
     sendPasswordResetEmail,
+    sendEmailVerification,
     getAuth
 } from 'firebase/auth';
 import { initializeApp } from "firebase/app";
@@ -22,11 +25,10 @@ export function useAuth() {
 
 export function AuthProvider({ children }) {
     const [currentUser, setCurrentUser] = useState(null);
-    const [userRole, setUserRole] = useState(null);
+    const [userRole, setUserRole] = useState(null); // Shuru mein null
     const [shopOwnerId, setShopOwnerId] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Public signup se user hamesha admin banega (yeh theek hai)
     async function signup(email, password) {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await setDoc(doc(db, "users", userCredential.user.uid), {
@@ -34,17 +36,22 @@ export function AuthProvider({ children }) {
             email: email,
             status: "active"
         });
+        await sendEmailVerification(userCredential.user);
         return userCredential;
     }
 
-    // STEP 1: Google Sign-In function ko simple kar diya.
-    // Iska kaam ab sirf Firebase se login karwana hai.
-    function signInWithGoogle() {
+    async function signInWithGoogle() {
         const provider = new GoogleAuthProvider();
-        return signInWithPopup(auth, provider);
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (!userDoc.exists()) {
+            await setDoc(userDocRef, { role: "admin", email: user.email, status: "active" });
+        }
+        return result;
     }
     
-    // Cashier account function (yeh theek hai)
     async function createCashierAccount(email, password) {
         const config = auth.app.options;
         const secondaryApp = initializeApp(config, "SecondaryApp" + Date.now());
@@ -67,60 +74,30 @@ export function AuthProvider({ children }) {
     }
 
     function login(email, password) { return signInWithEmailAndPassword(auth, email, password); }
-    function logout() { setUserRole(null); setShopOwnerId(null); return signOut(auth); }
+    function logout() { return signOut(auth); } // Simple logout
     function resetPassword(email) { return sendPasswordResetEmail(auth, email); }
-
-    // STEP 2: Asal logic onAuthStateChanged mein move kar diya
+    
+    // === YEH HAI ASAL FINAL FIX WALA SECTION ===
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const userDocRef = doc(db, "users", user.uid);
                 const userDoc = await getDoc(userDocRef);
                 
-                let userData;
-
                 if (userDoc.exists()) {
-                    // Agar user pehle se hai, to uski details le lo
-                    userData = userDoc.data();
-                } else {
-                    // YEH HAI SAB SE ZARURI HISSA
-                    // Agar user naya hai, check karo ke woh Google se aya hai ya nahi
-                    const isGoogleUser = user.providerData.some(
-                        (provider) => provider.providerId === 'google.com'
-                    );
-
-                    if (isGoogleUser) {
-                        // Agar naya user Google se hai, to uske liye pehle document create karo
-                        console.log("New Google user detected. Creating Firestore document...");
-                        const newUserPayload = {
-                            role: "admin",
-                            email: user.email,
-                            status: "active"
-                        };
-                        await setDoc(userDocRef, newUserPayload);
-                        userData = newUserPayload; // Ab is data ko use karo
-                    } else {
-                        // Agar user kisi aur tareeqe se aya hai aur uska document nahi hai, to log out kardo
-                        // Yeh case normal email signup mein nahi aayega kyunke wahan hum pehle hi document banate hain
-                        await signOut(auth);
-                        return;
-                    }
-                }
-
-                // Ab user ki status check karo
-                if (userData.status === 'disabled') {
-                    toast.error("Your account is disabled. Contact Admin.");
-                    await signOut(auth);
-                    setCurrentUser(null); setUserRole(null); setShopOwnerId(null);
-                } else {
-                    // Ab state set karo
+                    const userData = userDoc.data();
                     setCurrentUser(user);
-                    setUserRole(userData.role);
+                    setUserRole(userData.role); // Sirf role set karo
                     setShopOwnerId(userData.role === 'admin' ? user.uid : userData.adminId);
+                } else {
+                    // Agar document nahi hai, to zaroor koi masla hai. Logout kar do.
+                    // Yeh case ab nahi aana chahiye.
+                    await signOut(auth);
                 }
-
             } else {
-                setCurrentUser(null); setUserRole(null); setShopOwnerId(null);
+                setCurrentUser(null); 
+                setUserRole(null); 
+                setShopOwnerId(null);
             }
             setLoading(false);
         });
@@ -131,7 +108,7 @@ export function AuthProvider({ children }) {
     
     return (
         <AuthContext.Provider value={value}>
-            {!loading && children} 
+            {children} 
         </AuthContext.Provider>
     );
 }

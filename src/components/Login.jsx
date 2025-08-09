@@ -1,8 +1,10 @@
+// src/components/Login.jsx
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { FiLock, FiMoon, FiSun } from 'react-icons/fi';
-import { FaGoogle } from 'react-icons/fa'; // --- YEH MISSING IMPORT ADD KAR DIYA GAYA HAI ---
+import { FaGoogle } from 'react-icons/fa'; 
 
 function DarkModeToggle() {
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
@@ -30,13 +32,14 @@ function Login() {
     try {
       if (isLoginView) {
         await login(email, password);
-        toast.success('Logged in successfully!');
+        // Login ke baad toast ki zaroorat nahi, app khud aage le jayegi
       } else {
         const passwordConfirm = passwordConfirmRef.current.value;
         if (password !== passwordConfirm) throw new Error("Passwords do not match");
         await signup(email, password);
-        toast.success('Account created! Please log in.');
-        setIsLoginView(true);
+
+        toast.success('Success! A verification link has been sent to your email.');
+        // setIsLoginView(true); // Ab iski zaroorat nahi
       }
     } catch (error) {
       toast.error(error.message || 'Failed to process request.');
@@ -49,7 +52,7 @@ function Login() {
     setLoading(true);
     try {
       await signInWithGoogle();
-      toast.success("Logged in with Google!");
+      // Toast ki zaroorat nahi
     } catch (error) {
       toast.error(error.message || "Failed to sign in with Google.");
     } finally {
@@ -76,7 +79,6 @@ function Login() {
         </div>
         
         <button onClick={handleGoogleSignIn} disabled={loading} className="w-full flex justify-center items-center gap-3 py-3 px-4 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 font-semibold hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50">
-          {/* --- YAHAN GALTI THEEK KAR DI GAYI HAI --- */}
           <FaGoogle /> Continue with Google
         </button>
         <div className="flex items-center"><hr className="flex-grow border-gray-300 dark:border-gray-600" /><span className="px-4 text-gray-500">OR</span><hr className="flex-grow border-gray-300 dark:border-gray-600" /></div>

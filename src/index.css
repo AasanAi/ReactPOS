@@ -1,3 +1,5 @@
+/* src/index.css */
+
 /* --- YEH 3 LINES SABSE ZAROORI HAIN AUR HAMESHA UPAR HONI CHAHIYE --- */
 @tailwind base;
 @tailwind components;
@@ -61,20 +63,32 @@
 }
 
 
-/* "Smart Print" ka code */
+/* === "Smart Print" ka THEEK KIYA HUA code === */
 @media print {
+  /* Step 1: Print karte waqt, poori application ko chupa do */
   body * {
     visibility: hidden;
   }
-  .printable-receipt, .printable-receipt * {
+
+  /* Step 2: Lekin, sirf receipt walay hissay ko (jiski ID ye hai) aur uske andar ki har cheez ko wapas dikha do */
+  #printable-modern-receipt, #printable-modern-receipt * {
     visibility: visible;
   }
-  .printable-receipt {
+
+  /* Step 3: Receipt ko page ke bilkul shuru mein le aao */
+  #printable-modern-receipt {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
   }
+  
+  /* Step 4: Modal ke background ko transparent kar do */
+  .ReactModal__Overlay {
+    background-color: transparent !important;
+  }
+
+  /* Step 5: Print page ki settings (optional, but good to have) */
   @page {
     size: auto;
     margin: 5mm;

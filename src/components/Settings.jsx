@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+// src/components/Settings.jsx
+
+import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
-// Naya sub-component, sirf cashiers ki list ke liye
+// CashierList Sub-component
 function CashierList({ allUsers, onResetPassword, onToggleUserStatus }) {
-  // Sirf cashiers ko filter karo
   const cashiers = allUsers.filter(user => user.role === 'cashier');
 
   if (cashiers.length === 0) {
@@ -47,12 +48,12 @@ function CashierList({ allUsers, onResetPassword, onToggleUserStatus }) {
   );
 }
 
-
+// UserManagement Sub-component
 function UserManagement({ allUsers, onResetPassword, onToggleUserStatus }) {
-  const [email, setEmail] =useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { createCashierAccount } = useAuth(); 
+  const { createCashierAccount } = useAuth();
 
   const handleCreateCashier = async (e) => {
     e.preventDefault();
@@ -66,7 +67,8 @@ function UserManagement({ allUsers, onResetPassword, onToggleUserStatus }) {
       await createCashierAccount(email, password);
       toast.dismiss(toastId);
       toast.success(`Success! New cashier ${email} created.`);
-      setEmail(''); setPassword('');
+      setEmail('');
+      setPassword('');
     } catch (error) {
       toast.dismiss(toastId);
       toast.error(error.message || "Failed to create cashier.");
@@ -91,19 +93,105 @@ function UserManagement({ allUsers, onResetPassword, onToggleUserStatus }) {
           {loading ? 'Creating...' : 'Create Cashier Account'}
         </button>
       </form>
-      {/* Nayi cashier list yahan dikhegi */}
       <CashierList allUsers={allUsers} onResetPassword={onResetPassword} onToggleUserStatus={onToggleUserStatus} />
     </div>
   );
 }
 
-function Settings({ onClearData, allUsers, onResetPassword, onToggleUserStatus }) {
+// Main Settings Component
+function Settings({
+  onClearData,
+  allUsers,
+  onResetPassword,
+  onToggleUserStatus,
+  shopName,
+  shopAddress,
+  shopPhone,
+  shopLogo,
+  onUpdateShopName,
+  onUpdateShopAddress,
+  onUpdateShopPhone,
+  onUpdateShopLogo
+}) {
   const { userRole } = useAuth();
+
+  const [localShopName, setLocalShopName] = useState(shopName || "");
+  const [localShopAddress, setLocalShopAddress] = useState(shopAddress || "");
+  const [localShopPhone, setLocalShopPhone] = useState(shopPhone || "");
+  const [localShopLogo, setLocalShopLogo] = useState(shopLogo || null);
+
+  useEffect(() => {
+    setLocalShopName(shopName || "");
+    setLocalShopAddress(shopAddress || "");
+    setLocalShopPhone(shopPhone || "");
+    setLocalShopLogo(shopLogo || null);
+  }, [shopName, shopAddress, shopPhone, shopLogo]);
+
+  const saveShopInfo = () => {
+    onUpdateShopName(localShopName);
+    onUpdateShopAddress(localShopAddress);
+    onUpdateShopPhone(localShopPhone);
+    onUpdateShopLogo(localShopLogo);
+    toast.success("Shop information saved successfully!");
+  };
 
   return (
     <div className="container mx-auto px-6 py-8">
       <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Settings</h2>
+      
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg mb-8">
+        <h3 className="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4 pb-2 border-b">Shop Information</h3>
+        
+        <div className="mb-4">
+          <label htmlFor="shopName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Shop Name</label>
+          <input type="text" id="shopName" value={localShopName} onChange={(e) => setLocalShopName(e.target.value)} className="w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Enter your shop name" />
+        </div>
+        
+        <div className="mb-4">
+          <label htmlFor="shopAddress" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Shop Address</label>
+          <textarea id="shopAddress" value={localShopAddress} onChange={(e) => setLocalShopAddress(e.target.value)} className="w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Enter your shop address" rows="2" />
+        </div>
+
+        <div className="mb-4">
+          <label htmlFor="shopPhone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Shop Phone</label>
+          <input type="tel" id="shopPhone" value={localShopPhone} onChange={(e) => setLocalShopPhone(e.target.value)} className="w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Enter shop phone number" />
+        </div>
+        
+        <div className="mb-4">
+          <label htmlFor="shopLogo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Shop Logo (Optional)</label>
+          <input 
+            type="file" 
+            id="shopLogo" 
+            accept="image/*" 
+            key={localShopLogo || Date.now()} 
+            onChange={(e) => {
+              const file = e.target.files[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onloadend = () => { setLocalShopLogo(reader.result); };
+                reader.readAsDataURL(file);
+              }
+            }} 
+            className="w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
+          {localShopLogo && (
+            <div className="mt-2 flex items-center space-x-4">
+              <img src={localShopLogo} alt="Shop Logo Preview" className="h-12 object-contain border p-1 rounded-md" />
+              <button 
+                onClick={() => setLocalShopLogo(null)}
+                className="bg-red-100 text-red-700 px-3 py-1 text-xs font-semibold rounded-md hover:bg-red-200 transition-colors"
+              >
+                Remove Logo
+              </button>
+            </div>
+          )}
+        </div>
+        
+        <button onClick={saveShopInfo} className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-md font-semibold transition-colors">Save Changes</button>
+      </div>
+
       {userRole === 'admin' && <UserManagement allUsers={allUsers} onResetPassword={onResetPassword} onToggleUserStatus={onToggleUserStatus} />}
+      
       <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-xl mt-8">
         <h3 className="text-xl font-bold text-red-800">Danger Zone</h3>
         <p className="text-red-700 mt-2">Be careful. This action cannot be undone.</p>
