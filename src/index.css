@@ -1,46 +1,67 @@
 /* src/index.css */
 
-/* --- YEH 3 LINES SABSE ZAROORI HAIN AUR HAMESHA UPAR HONI CHAHIYE --- */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* --- Iske neeche aapka baaki ka custom CSS aayega --- */
+/* === Animated Gradient Background === */
+.animated-gradient-bg {
+  background: linear-gradient(-45deg, #0d324d, #7f5a83, #23a6d5, #23d5ab);
+  background-size: 400% 400%;
+  animation: gradient 15s ease infinite;
+}
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* === Subtle Glassmorphism Card (Andar wala card) === */
+.glass-card-subtle {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid transparent;
+}
+
+.dark .glass-card-subtle {
+  background: rgba(17, 24, 39, 0.8); /* bg-gray-900 with opacity */
+}
+
+
+/* === Subtle Animated Border (Bahar wala frame) === */
+.animated-border {
+  background-size: 200% 200%;
+  background-position: 0% 50%;
+  animation: border-gradient 4s ease infinite alternate;
+}
+
+@keyframes border-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+/* ========================================================== */
 
 /* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
-}
-::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
 
 /* Dark mode scrollbar */
-.dark ::-webkit-scrollbar-track {
-  background: #2d3748;
-}
-.dark ::-webkit-scrollbar-thumb {
-  background: #718096;
-}
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #a0aec0;
-}
+.dark ::-webkit-scrollbar-track { background: #2d3748; }
+.dark ::-webkit-scrollbar-thumb { background: #718096; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #a0aec0; }
 
-/* Naye, Behtar Modal ki Styling */
+/* Modal ki Styling */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
@@ -59,38 +80,14 @@
 }
 
 .dark .modal-content {
-  background: #1f2937; /* bg-gray-800 */
+  background: #1f2937;
 }
 
-
-/* === "Smart Print" ka THEEK KIYA HUA code === */
+/* "Smart Print" ka code */
 @media print {
-  /* Step 1: Print karte waqt, poori application ko chupa do */
-  body * {
-    visibility: hidden;
-  }
-
-  /* Step 2: Lekin, sirf receipt walay hissay ko (jiski ID ye hai) aur uske andar ki har cheez ko wapas dikha do */
-  #printable-modern-receipt, #printable-modern-receipt * {
-    visibility: visible;
-  }
-
-  /* Step 3: Receipt ko page ke bilkul shuru mein le aao */
-  #printable-modern-receipt {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-  }
-  
-  /* Step 4: Modal ke background ko transparent kar do */
-  .ReactModal__Overlay {
-    background-color: transparent !important;
-  }
-
-  /* Step 5: Print page ki settings (optional, but good to have) */
-  @page {
-    size: auto;
-    margin: 5mm;
-  }
+  body * { visibility: hidden; }
+  #printable-modern-receipt, #printable-modern-receipt * { visibility: visible; }
+  #printable-modern-receipt { position: absolute; left: 0; top: 0; width: 100%; }
+  .ReactModal__Overlay { background-color: transparent !important; }
+  @page { size: auto; margin: 5mm; }
 }
