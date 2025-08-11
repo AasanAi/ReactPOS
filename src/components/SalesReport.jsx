@@ -1,391 +1,177 @@
 // src/components/SalesReport.jsx
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
+import { FiCalendar, FiDollarSign, FiPackage, FiPercent, FiTrash2, FiEye, FiDownload } from 'react-icons/fi';
 import Modal from 'react-modal';
-import toast from 'react-hot-toast';
-import { utils, writeFile } from 'xlsx';
-import { FaTrashAlt } from 'react-icons/fa';
+import * as XLSX from 'xlsx';
+import toast from 'react-hot-toast'; // === YEH HAI ASAL FIX ===
 
-// --- UPDATED ReceiptContent Component to match POS receipt ---
-function ReceiptContent({ data }) {
-  if (!data) return null;
-
-  // Helper functions for calculations (same as in POS ModernReceipt)
-  const calculateSubtotal = (items) => items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const calculateTotalItemDiscount = (items) => items.reduce((sum, item) => sum + ((item.discount || 0) * item.quantity), 0);
-
-  const subtotal = calculateSubtotal(data.items || []);
-  const totalItemDiscount = calculateTotalItemDiscount(data.items || []);
-  const additionalDiscount = data.additionalDiscount || 0;
-  const finalSubtotal = subtotal - totalItemDiscount; // Subtotal after item discounts
-  const finalGrandTotal = finalSubtotal - additionalDiscount;
-  const change = data.amountPaid - finalGrandTotal;
+// Receipt component ko yahan locally define kar dete hain
+const ModernReceipt = ({ sale, businessInfo }) => {
+  if (!sale) return null;
+  const subtotal = sale.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const totalItemDiscount = sale.items.reduce((sum, item) => sum + ((item.discount || 0) * item.quantity), 0);
+  const additionalDiscount = sale.additionalDiscount || 0;
+  const finalGrandTotal = subtotal - totalItemDiscount - additionalDiscount;
 
   return (
-    <div className="p-6 font-mono text-sm text-black bg-white">
-      <h2 className="text-center text-xl font-bold mb-2">Aasan POS</h2>
-      <p className="text-center">Sale Invoice</p>
-      <hr className="my-3 border-dashed border-black" />
-      <div className="space-y-1">
-        <p><strong>Sale ID:</strong> {data.id}</p>
-        <p><strong>Date:</strong> {new Date(data.date).toLocaleString()}</p>
-        <p><strong>Customer:</strong> {data.customerName || 'Walk-in'}</p>
+    <div className="bg-white text-gray-800 font-sans p-6 w-[320px]">
+      <div className="text-center mb-4">
+        {businessInfo?.logo && <img src={businessInfo.logo} alt="Shop Logo" className="mx-auto h-16 w-auto object-contain mb-2" />}
+        <h1 className="text-2xl font-bold text-gray-900">{businessInfo?.name || 'Aasan POS'}</h1>
+        <p className="text-xs text-gray-500">{businessInfo?.address || ''}</p>
+        <p className="text-xs text-gray-500">{businessInfo?.phone || ''}</p>
       </div>
-      <hr className="my-3 border-dashed border-black" />
-
-      {/* --- UPDATED TABLE: Show item discount if any --- */}
-      <table className="w-full">
-        <thead>
-          <tr>
-            <th className="text-left font-bold">Item</th>
-            <th className="text-right font-bold">Qty</th>
-            <th className="text-right font-bold">Price</th>
-            {/* Show discount column only if any item has discount */}
-            {data.items && data.items.some(item => item.discount > 0) && (
-              <th className="text-right font-bold">Disc/Item</th>
-            )}
-            <th className="text-right font-bold">Total</th>
-          </tr>
-        </thead>
+      <div className="grid grid-cols-2 gap-x-4 text-xs mb-4 pb-2 border-b border-dashed">
+        <div><strong>Inv #:</strong> {sale.id.toString().slice(-6).toUpperCase()}</div>
+        <div className="text-right"><strong>Date:</strong> {new Date(sale.date).toLocaleDateString('en-GB')}</div>
+        <div><strong>Customer:</strong></div>
+        <div className="text-right">{sale.customerName || 'Walk-in Customer'}</div>
+      </div>
+      <table className="w-full text-xs mb-4">
+        <thead><tr className="border-b"><th className="text-left font-semibold py-2">ITEM</th><th className="text-center font-semibold">QTY</th><th className="text-right font-semibold">PRICE</th><th className="text-right font-semibold">DISC</th><th className="text-right font-semibold">TOTAL</th></tr></thead>
         <tbody>
-          {(data.items || []).map((item, index) => {
-            const itemTotal = (item.price - (item.discount || 0)) * item.quantity;
-            return (
-              <tr key={item.barcode || index}>
-                <td>{item.name}</td>
-                <td className="text-right">{item.quantity}</td>
-                <td className="text-right">{(item.price || 0).toFixed(2)}</td>
-                {/* Show item discount if any */}
-                {data.items && data.items.some(i => i.discount > 0) && (
-                  <td className="text-right text-red-500">-{(item.discount || 0).toFixed(2)}</td>
-                )}
-                <td className="text-right">{itemTotal.toFixed(2)}</td>
-              </tr>
-            );
-          })}
+          {sale.items.map((item, index) => (
+            <tr key={index} className="border-b border-gray-100"><td className="py-2">{item.name}</td><td className="text-center">{item.quantity}</td><td className="text-right">{(item.price || 0).toFixed(2)}</td><td className="text-right text-red-500">{(item.discount || 0).toFixed(2)}</td><td className="text-right font-medium">{(((item.price || 0) - (item.discount || 0)) * item.quantity).toFixed(2)}</td></tr>
+          ))}
         </tbody>
       </table>
-      <hr className="my-3 border-dashed border-black" />
-
-      {/* --- UPDATED SUMMARY: Show all discount types --- */}
-      <div className="space-y-1 text-xs mt-2">
-        <p className="flex justify-between">
-          <strong>Subtotal:</strong>
-          <span>PKR {subtotal.toFixed(2)}</span>
-        </p>
-        {/* Show item discounts if any */}
-        {totalItemDiscount > 0 && (
-          <p className="flex justify-between text-red-600">
-            <strong>Item Discounts:</strong>
-            <span>- PKR {totalItemDiscount.toFixed(2)}</span>
-          </p>
-        )}
-        {/* Show additional discount if any */}
-        {additionalDiscount > 0 && (
-          <p className="flex justify-between text-red-600">
-            <strong>Additional Discount:</strong>
-            <span>- PKR {additionalDiscount.toFixed(2)}</span>
-          </p>
-        )}
-        <p className="flex justify-between font-bold text-base">
-          <strong>Grand Total:</strong>
-          <span>PKR {finalGrandTotal.toFixed(2)}</span>
-        </p>
-        <p className="flex justify-between">
-          <strong>Amount Paid:</strong>
-          <span>PKR {(data.amountPaid || 0).toFixed(2)}</span>
-        </p>
-        <p className="flex justify-between font-semibold">
-          <strong>Change:</strong>
-          <span>PKR {change > 0 ? change.toFixed(2) : '0.00'}</span>
-        </p>
-      </div>
-
-      <div className="text-center mt-4 pt-2 border-t border-dashed border-black text-xs">
-        <p>Thank you for your business!</p>
-        <p className="font-semibold">Powered by Saleem Ullah</p>
-        <p>WhatsApp: 0333-7304781</p>
+      <div className="space-y-1 text-xs">
+        <div className="flex justify-between"><span>Subtotal:</span><span>PKR {subtotal.toFixed(2)}</span></div>
+        {totalItemDiscount > 0 && (<div className="flex justify-between"><span>Item Discounts:</span><span className="text-red-500">- PKR {totalItemDiscount.toFixed(2)}</span></div>)}
+        {additionalDiscount > 0 && (<div className="flex justify-between"><span>Additional Discount:</span><span className="text-red-500">- PKR {additionalDiscount.toFixed(2)}</span></div>)}
+        <div className="flex justify-between text-base font-bold pt-2 border-t mt-2"><span>Grand Total:</span><span>PKR {finalGrandTotal.toFixed(2)}</span></div>
+        <div className="flex justify-between text-sm"><span>Amount Paid:</span><span>PKR {sale.amountPaid.toFixed(2)}</span></div>
+        <div className="flex justify-between text-sm font-semibold"><span>Change:</span><span>PKR {(sale.change || 0).toFixed(2)}</span></div>
       </div>
     </div>
   );
-}
-// --- END UPDATED ReceiptContent Component ---
+};
 
-function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales }) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filter, setFilter] = useState("all"); // Options: 'all', 'today', 'thisWeek', 'thisMonth'
+function SalesReport({ salesHistory, onDeleteSale, onDeleteFilteredSales, shopName, shopAddress, shopPhone, shopLogo }) {
+  const [filter, setFilter] = useState('today');
   const [selectedSale, setSelectedSale] = useState(null);
 
-  if (!salesHistory) {
-    return <div className="text-center p-10 dark:text-gray-400">Loading sales report...</div>;
-  }
-
-  const filteredSales = salesHistory
-    .filter(sale => {
-      const saleDate = new Date(sale.date);
-      const now = new Date();
-      if (filter === "today") {
-        return saleDate.toDateString() === now.toDateString();
-      }
-      if (filter === "thisWeek") {
-        const startOfWeek = new Date(now);
-        const day = startOfWeek.getDay();
-        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-        startOfWeek.setDate(diff);
-        startOfWeek.setHours(0, 0, 0, 0);
-        return saleDate >= startOfWeek;
-      }
-      if (filter === "thisMonth") {
-        return (
-          saleDate.getMonth() === now.getMonth() &&
-          saleDate.getFullYear() === now.getFullYear()
-        );
-      }
-      // Default: 'all'
-      return true;
-    })
-    .filter(sale =>
-      (sale.id ? sale.id.toString().toLowerCase() : '').includes(searchTerm.toLowerCase())
-    );
-
-  const handleDeleteFiltered = () => {
-    if (filteredSales.length === 0) {
-      return toast.error("There are no sales to delete in the current filter.");
+  const filteredSales = useMemo(() => {
+    if (!salesHistory) return [];
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    switch (filter) {
+      case 'today': return salesHistory.filter(sale => new Date(sale.date) >= today);
+      case 'week': const startOfWeek = new Date(today); startOfWeek.setDate(today.getDate() - today.getDay()); return salesHistory.filter(sale => new Date(sale.date) >= startOfWeek);
+      case 'month': const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1); return salesHistory.filter(sale => new Date(sale.date) >= startOfMonth);
+      default: return salesHistory;
     }
-    if (window.confirm(`Are you sure you want to delete all ${filteredSales.length} currently filtered sales? This action cannot be undone.`)) {
-      const confirmationText = "DELETE";
-      const userInput = prompt(`To confirm, please type "${confirmationText}"`);
-      if (userInput === confirmationText) {
-        onDeleteFilteredSales(filteredSales);
-      } else {
-        toast.error("Confirmation text did not match. Deletion cancelled.");
-      }
-    }
-  };
+  }, [salesHistory, filter]);
+  
+  const summaryStats = useMemo(() => {
+    const totalRevenue = filteredSales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+    const totalProfit = filteredSales.reduce((sum, sale) => sum + (sale.totalProfit || 0), 0);
+    const totalTransactions = filteredSales.length;
+    const totalItemsSold = filteredSales.reduce((sum, sale) => sum + (sale.items?.reduce((iSum, i) => iSum + i.quantity, 0) || 0), 0);
+    return { totalRevenue, totalProfit, totalTransactions, totalItemsSold };
+  }, [filteredSales]);
 
-  // --- UPDATED exportCSV to include discount info ---
-  const exportCSV = (data) => {
-    if (!data || data.length === 0) {
-      toast.error("No data to export.");
+  const handleExport = () => {
+    if (!filteredSales || filteredSales.length === 0) {
+      toast.error("No data to export for this period.");
       return;
     }
-    // Calculate total discount for each sale
-    const enrichedData = data.map(sale => {
-      const items = sale.items || [];
-      const totalItemDiscount = items.reduce((sum, item) => sum + ((item.discount || 0) * item.quantity), 0);
-      const additionalDiscount = sale.additionalDiscount || 0;
-      const totalDiscount = totalItemDiscount + additionalDiscount;
-      return { ...sale, totalDiscount };
-    });
-
-    const headers = ['Sale ID', 'Date', 'Customer', 'Payment Type', 'Subtotal', 'Total Discount', 'Grand Total', 'Amount Paid', 'Profit'];
-    const csvData = enrichedData.map(sale => [
-      sale.id,
-      new Date(sale.date).toLocaleString(),
-      sale.customerName || 'Walk-in',
-      sale.paymentType || 'N/A',
-      (sale.totalAmount || 0).toFixed(2), // Subtotal (before any discount)
-      (sale.totalDiscount || 0).toFixed(2), // Total Discount
-      ((sale.totalAmount || 0) - (sale.totalDiscount || 0)).toFixed(2), // Grand Total
-      (sale.amountPaid || 0).toFixed(2),
-      (sale.totalProfit || 0).toFixed(2)
-    ]);
-    const csvContent = [headers.join(','), ...csvData.map(e => e.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `sales_report_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
-    link.click();
+    const dataToExport = filteredSales.map(sale => ({
+      Date: new Date(sale.date).toLocaleString(),
+      Customer: sale.customerName || 'Walk-in',
+      'Total Items': sale.items.length,
+      'Total Amount (PKR)': (sale.totalAmount || 0).toFixed(2),
+      'Total Discount (PKR)': (sale.totalDiscount || 0).toFixed(2),
+      'Net Sale (PKR)': ((sale.totalAmount || 0) - (sale.totalDiscount || 0)).toFixed(2),
+      'Total Profit (PKR)': (sale.totalProfit || 0).toFixed(2),
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sales Report");
+    XLSX.writeFile(workbook, `SalesReport_${filter}.xlsx`);
   };
 
-  // --- UPDATED exportExcel to include discount info ---
-  const exportExcel = (data) => {
-    if (!data || data.length === 0) {
-      toast.error("No data to export.");
-      return;
-    }
-    // Calculate total discount for each sale
-    const enrichedData = data.map(sale => {
-      const items = sale.items || [];
-      const totalItemDiscount = items.reduce((sum, item) => sum + ((item.discount || 0) * item.quantity), 0);
-      const additionalDiscount = sale.additionalDiscount || 0;
-      const totalDiscount = totalItemDiscount + additionalDiscount;
-      const grandTotal = (sale.totalAmount || 0) - totalDiscount;
-      return { ...sale, totalDiscount, grandTotal };
-    });
+  const StatCard = ({ icon, title, value, color }) => (
+    <div className={`bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg flex items-center space-x-4 border-l-4 ${color}`}>
+      <div className="text-3xl">{icon}</div>
+      <div>
+        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{title}</p>
+        <p className="text-xl font-bold text-gray-800 dark:text-white">{value}</p>
+      </div>
+    </div>
+  );
 
-    const worksheet = utils.json_to_sheet(
-      enrichedData.map(sale => ({
-        "Sale ID": sale.id,
-        "Date": new Date(sale.date).toLocaleString(),
-        "Customer": sale.customerName || 'Walk-in',
-        "Payment Type": sale.paymentType || 'N/A',
-        "Subtotal": (sale.totalAmount || 0).toFixed(2),
-        "Total Discount": (sale.totalDiscount || 0).toFixed(2),
-        "Grand Total": (sale.grandTotal || 0).toFixed(2),
-        "Amount Paid": (sale.amountPaid || 0).toFixed(2),
-        "Profit": (sale.totalProfit || 0).toFixed(2),
-      }))
-    );
-    const workbook = utils.book_new();
-    utils.book_append_sheet(workbook, worksheet, "Sales Report");
-    writeFile(workbook, `sales_report_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.xlsx`);
-  };
-
-  const handlePrintReceipt = () => {
-    window.print();
-  };
+  const FilterButton = ({ label, value }) => (
+    <button
+      onClick={() => setFilter(value)}
+      className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+        filter === value 
+        ? 'bg-teal-600 text-white shadow' 
+        : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
+      }`}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div className="container mx-auto px-6 py-8">
+      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Sales Report</h2>
+      <div className="flex flex-wrap gap-2 mb-6 p-2 bg-gray-200 dark:bg-gray-900 rounded-lg">
+        <FilterButton label="Today" value="today" />
+        <FilterButton label="This Week" value="week" />
+        <FilterButton label="This Month" value="month" />
+        <FilterButton label="All Time" value="all" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <StatCard icon={<FiDollarSign className="text-green-500"/>} title="Total Sales" value={`PKR ${summaryStats.totalRevenue.toFixed(2)}`} color="border-green-500"/>
+        <StatCard icon={<FiPercent className="text-blue-500"/>} title="Total Profit" value={`PKR ${summaryStats.totalProfit.toFixed(2)}`} color="border-blue-500"/>
+        <StatCard icon={<FiCalendar className="text-purple-500"/>} title="Transactions" value={summaryStats.totalTransactions} color="border-purple-500"/>
+        <StatCard icon={<FiPackage className="text-orange-500"/>} title="Items Sold" value={summaryStats.totalItemsSold} color="border-orange-500"/>
+      </div>
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">Sales Report</h2>
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-            <input
-              type="text"
-              placeholder="Search by Sale ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-auto bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            />
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="w-full sm:w-auto bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            >
-              <option value="all">All Time</option>
-              <option value="today">Today</option>
-              <option value="thisWeek">This Week</option>
-              <option value="thisMonth">This Month</option>
-            </select>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={() => exportCSV(filteredSales)}
-              className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
-            >
-              Export CSV
-            </button>
-            <button
-              onClick={() => exportExcel(filteredSales)}
-              className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
-            >
-              Export Excel
-            </button>
-            <button
-              onClick={handleDeleteFiltered}
-              className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-            >
-              <FaTrashAlt />Delete Filtered
-            </button>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+          <h3 className="text-xl font-bold text-gray-700 dark:text-gray-200">Sales Details ({filter.charAt(0).toUpperCase() + filter.slice(1)})</h3>
+          <div className="flex space-x-2">
+            <button onClick={handleExport} disabled={filteredSales.length === 0} className="bg-green-500 text-white px-3 py-1 rounded-lg flex items-center space-x-2 text-xs hover:bg-green-600 disabled:bg-green-300"><FiDownload /><span>Export</span></button>
+            <button onClick={() => { if (window.confirm(`Delete all ${filteredSales.length} displayed sales?`)) { onDeleteFilteredSales(filteredSales); } }} disabled={filteredSales.length === 0} className="bg-red-500 text-white px-3 py-1 rounded-lg flex items-center space-x-2 text-xs hover:bg-red-600 disabled:bg-red-300"><FiTrash2 /><span>Delete Displayed</span></button>
           </div>
         </div>
-        <div className="overflow-x-auto max-h-[70vh]">
+        <div className="overflow-x-auto max-h-[60vh]">
           <table className="min-w-full table-auto text-sm">
             <thead className="bg-gray-100 dark:bg-gray-700 sticky top-0">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Sale ID</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Date</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Customer</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Payment</th>
-                <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Subtotal</th>
-                {/* --- NEW COLUMN: Total Discount --- */}
-                <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Discount</th>
-                {/* --- END NEW COLUMN --- */}
-                <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Total</th>
-                <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Paid</th>
-                <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Profit</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Total</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Discount</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300 text-green-600">Profit</th>
                 <th className="px-4 py-3 text-center font-semibold text-gray-600 dark:text-gray-300">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredSales.length > 0 ? (
-                filteredSales.map((sale) => {
-                  // --- Calculate discount for table display ---
-                  const items = sale.items || [];
-                  const totalItemDiscount = items.reduce((sum, item) => sum + ((item.discount || 0) * item.quantity), 0);
-                  const additionalDiscount = sale.additionalDiscount || 0;
-                  const totalDiscount = totalItemDiscount + additionalDiscount;
-                  const grandTotal = (sale.totalAmount || 0) - totalDiscount;
-                  // --- END Calculate discount ---
-
-                  return (
-                    <tr key={sale.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                      <td className="px-4 py-3 font-mono text-xs">{sale.id}</td>
-                      <td className="px-4 py-3">{new Date(sale.date).toLocaleString()}</td>
-                      <td className="px-4 py-3">{sale.customerName || 'Walk-in'}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 text-xs rounded-full ${sale.paymentType === 'Credit' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>
-                          {sale.paymentType || 'N/A'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">PKR {(sale.totalAmount || 0).toFixed(2)}</td>
-                      {/* --- NEW CELL: Total Discount --- */}
-                      <td className="px-4 py-3 text-right text-red-500">PKR {totalDiscount.toFixed(2)}</td>
-                      {/* --- END NEW CELL --- */}
-                      <td className="px-4 py-3 text-right font-semibold">PKR {grandTotal.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-right">PKR {(sale.amountPaid || 0).toFixed(2)}</td>
-                      <td className="px-4 py-3 text-right text-emerald-600">PKR {(sale.totalProfit || 0).toFixed(2)}</td>
-                      <td className="px-4 py-3 text-center space-x-2">
-                        <button
-                          onClick={() => setSelectedSale(sale)}
-                          className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 text-xs rounded-md transition-colors"
-                        >
-                          View
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (window.confirm('Are you sure you want to permanently delete this sale?')) onDeleteSale(sale.id);
-                          }}
-                          className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 text-xs rounded-md transition-colors"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan="10" className="text-center py-10 text-gray-500">
-                    No sales found for this period.
+              {filteredSales.map((sale) => (
+                <tr key={sale.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <td className="px-4 py-3 dark:text-gray-300 whitespace-nowrap">{new Date(sale.date).toLocaleString()}</td>
+                  <td className="px-4 py-3 dark:text-gray-300">{sale.customerName || 'Walk-in'}</td>
+                  <td className="px-4 py-3 dark:text-gray-300">PKR {(sale.totalAmount || 0).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-red-500">PKR {(sale.totalDiscount || 0).toFixed(2)}</td>
+                  <td className="px-4 py-3 font-semibold text-green-600">PKR {(sale.totalProfit || 0).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-center space-x-2">
+                    <button onClick={() => setSelectedSale(sale)} className="text-blue-500 hover:text-blue-700" title="View Receipt"><FiEye /></button>
+                    <button onClick={() => {if(window.confirm("Are you sure?")) {onDeleteSale(sale.id)}}} className="text-red-500 hover:text-red-700" title="Delete Sale"><FiTrash2 /></button>
                   </td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
+        {filteredSales.length === 0 && <p className="text-center text-gray-500 py-16">No sales found for this period.</p>}
       </div>
-
-      <Modal
-        isOpen={!!selectedSale}
-        onRequestClose={() => setSelectedSale(null)}
-        contentLabel="Sale Receipt Modal"
-        className="bg-white rounded-lg shadow-xl p-0 w-full max-w-sm mx-auto mt-12"
-        overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center"
-      >
-        {selectedSale && (
-          <div className="printable-receipt">
-            <div id="printable-receipt-report">
-              {/* Use the updated ReceiptContent component */}
-              <ReceiptContent data={selectedSale} />
-            </div>
-            <div className="text-center p-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
-              <button
-                onClick={handlePrintReceipt}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Print
-              </button>
-              <button
-                onClick={() => setSelectedSale(null)}
-                className="bg-gray-500 text-white px-8 py-2 rounded-lg hover:bg-gray-600 transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        )}
+      
+      <Modal isOpen={!!selectedSale} onRequestClose={() => setSelectedSale(null)} className="bg-transparent" overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          {selectedSale && <ModernReceipt sale={selectedSale} businessInfo={{ name: shopName, address: shopAddress, phone: shopPhone, logo: shopLogo }} />}
       </Modal>
     </div>
   );
