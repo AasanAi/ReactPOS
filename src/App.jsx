@@ -28,11 +28,8 @@ function MainApp() {
 
   useEffect(() => {
     if (userRole) {
-      if (userRole === 'admin') {
-        setActiveTab('dashboard');
-      } else if (userRole === 'cashier') {
-        setActiveTab('pos');
-      }
+      if (userRole === 'admin') setActiveTab('dashboard');
+      else if (userRole === 'cashier') setActiveTab('pos');
     }
   }, [userRole]);
 
@@ -54,7 +51,6 @@ function MainApp() {
     const savedShopAddress = localStorage.getItem(`shopAddress_${uid}`);
     const savedShopPhone = localStorage.getItem(`shopPhone_${uid}`);
     const savedShopLogo = localStorage.getItem(`shopLogo_${uid}`);
-    
     setShopName(savedShopName || "AASAN POS");
     setShopAddress(savedShopAddress || "");
     setShopPhone(savedShopPhone || "");
@@ -94,10 +90,51 @@ function MainApp() {
     fetchData();
   }, [shopOwnerId, userRole, currentUser]);
 
-  // === YEH HAIN ASAL FINAL FIXES ===
-  const handleAddProduct = useCallback(async (productToAdd) => { if (!shopOwnerId) return; try { const docRef = await addDoc(collection(db, `users/${shopOwnerId}/products`), productToAdd); setProducts(prev => [...prev, { id: docRef.id, ...productToAdd }]); toast.success("Product added successfully!"); } catch (error) { toast.error("Failed to add product."); } }, [shopOwnerId]);
-  const handleUpdateProduct = useCallback(async (updatedProduct) => { if (!shopOwnerId) return; const { id, ...productData } = updatedProduct; try { await updateDoc(doc(db, `users/${shopOwnerId}/products`, id), productData); setProducts(prev => prev.map(p => (p.id === id ? updatedProduct : p))); toast.success("Product updated successfully!"); } catch (error) { toast.error("Failed to update product."); } }, [shopOwnerId]);
-  const handleDeleteProduct = useCallback(async (productId) => { if (!shopOwnerId) return; try { await deleteDoc(doc(db, `users/${shopOwnerId}/products`, productId)); setProducts(prev => prev.filter(p => p.id !== productId)); toast.success("Product deleted successfully!"); } catch (error) { toast.error("Failed to delete product."); } }, [shopOwnerId]);
+  const handleAddProduct = useCallback(async (productData, imageBase64) => {
+    if (!shopOwnerId) return;
+    const toastId = toast.loading("Adding product...");
+    try {
+      const dataToSave = { ...productData, imageUrl: imageBase64 || "" };
+      const docRef = await addDoc(collection(db, `users/${shopOwnerId}/products`), dataToSave);
+      setProducts(prev => [...prev, { id: docRef.id, ...dataToSave }]);
+      toast.dismiss(toastId);
+      toast.success("Product added successfully!");
+    } catch (error) {
+      toast.dismiss(toastId);
+      toast.error("Failed to add product.");
+    }
+  }, [shopOwnerId]);
+
+  const handleUpdateProduct = useCallback(async (productData, imageBase64) => {
+    if (!shopOwnerId) return;
+    const toastId = toast.loading("Updating product...");
+    const { id, ...dataToUpdate } = productData;
+    try {
+      if (imageBase64 !== undefined) {
+        dataToUpdate.imageUrl = imageBase64 || "";
+      }
+      await updateDoc(doc(db, `users/${shopOwnerId}/products`, id), dataToUpdate);
+      const updatedProductList = products.map(p => p.id === id ? { ...p, ...dataToUpdate } : p);
+      setProducts(updatedProductList);
+      toast.dismiss(toastId);
+      toast.success("Product updated successfully!");
+    } catch (error) {
+      toast.dismiss(toastId);
+      toast.error("Failed to update product.");
+    }
+  }, [shopOwnerId, products]);
+  
+  const handleDeleteProduct = useCallback(async (productId) => {
+    if (!shopOwnerId) return;
+    try {
+      await deleteDoc(doc(db, `users/${shopOwnerId}/products`, productId));
+      setProducts(prev => prev.filter(p => p.id !== productId));
+      toast.success("Product deleted successfully!");
+    } catch (error) {
+      toast.error("Failed to delete product.");
+    }
+  }, [shopOwnerId]);
+
   const handleAddCustomer = useCallback(async (customerToAdd) => { if (!shopOwnerId) return; try { const docRef = await addDoc(collection(db, `users/${shopOwnerId}/customers`), customerToAdd); setCustomers(prev => [...prev, { id: docRef.id, ...customerToAdd }]); toast.success("Customer added successfully!"); } catch (error) { toast.error("Failed to add customer."); } }, [shopOwnerId]);
   const handleUpdateCustomer = useCallback(async (updatedCustomer) => { if (!shopOwnerId) return; const { id, ...customerData } = updatedCustomer; try { await updateDoc(doc(db, `users/${shopOwnerId}/customers`, id), customerData); setCustomers(prev => prev.map(c => c.id === id ? updatedCustomer : c)); toast.success("Customer updated successfully!"); } catch (error) { toast.error("Failed to update customer."); } }, [shopOwnerId]);
   const handleDeleteCustomer = useCallback(async (customerId) => { if (!shopOwnerId) return; try { await deleteDoc(doc(db, `users/${shopOwnerId}/customers`, customerId)); setCustomers(prev => prev.filter(c => c.id !== customerId)); toast.success("Customer deleted successfully!"); } catch (error) { toast.error("Failed to delete customer."); } }, [shopOwnerId]);
@@ -119,7 +156,7 @@ function MainApp() {
         {activeTab === 'pos' && <POS products={products} customers={customers} onProcessSale={handleProcessSale} cart={cart} setCart={setCart} shopName={shopName} shopAddress={shopAddress} shopPhone={shopPhone} shopLogo={shopLogo} />}
         {activeTab === 'inventory' && <Inventory products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} />}
         {activeTab === 'customers' && userRole === 'admin' && <Customers customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onReceivePayment={handleReceivePayment} />}
-        {activeTab === 'sales report' && userRole === 'admin' && <SalesReport salesHistory={salesHistory} onDeleteSale={handleDeleteSale} onDeleteFilteredSales={handleDeleteFilteredSales} />}
+        {activeTab === 'sales report' && userRole === 'admin' && <SalesReport salesHistory={salesHistory} onDeleteSale={handleDeleteSale} onDeleteFilteredSales={handleDeleteFilteredSales} shopName={shopName} shopAddress={shopAddress} shopPhone={shopPhone} shopLogo={shopLogo} />}
         {activeTab === 'settings' && userRole === 'admin' && 
             <Settings
               onClearData={handleClearAllData} allUsers={allUsers} onResetPassword={handleResetPassword} onToggleUserStatus={handleToggleUserStatus}
