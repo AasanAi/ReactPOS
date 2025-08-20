@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
-import { db, auth } from './firebase.js';
+import { db, auth, storage } from './firebase.js';
+import { ref, uploadString, getDownloadURL, deleteObject } from "firebase/storage";
 import {
   collection, getDocs, addDoc, doc, updateDoc, deleteDoc, writeBatch, increment, query, where
 } from "firebase/firestore";
@@ -24,7 +25,7 @@ import VerifyEmail from "./components/VerifyEmail";
 
 function MainApp() {
   const { currentUser, userRole, shopOwnerId } = useAuth();
-  const [activeTab, setActiveTab] = useState('dashboard'); 
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   useEffect(() => {
     if (userRole) {
@@ -94,9 +95,17 @@ function MainApp() {
     if (!shopOwnerId) return;
     const toastId = toast.loading("Adding product...");
     try {
-      const dataToSave = { ...productData, imageUrl: imageBase64 || "" };
+      const dataToSave = { ...productData, imageUrl: "" };
       const docRef = await addDoc(collection(db, `users/${shopOwnerId}/products`), dataToSave);
-      setProducts(prev => [...prev, { id: docRef.id, ...dataToSave }]);
+      let imageUrl = "";
+      if (imageBase64) {
+        toast.loading("Uploading image...", { id: toastId });
+        const imageRef = ref(storage, `products/${shopOwnerId}/${docRef.id}`);
+        await uploadString(imageRef, imageBase64, 'data_url');
+        imageUrl = await getDownloadURL(imageRef);
+        await updateDoc(docRef, { imageUrl });
+      }
+      setProducts(prev => [...prev, { id: docRef.id, ...dataToSave, imageUrl }]);
       toast.dismiss(toastId);
       toast.success("Product added successfully!");
     } catch (error) {
@@ -111,7 +120,14 @@ function MainApp() {
     const { id, ...dataToUpdate } = productData;
     try {
       if (imageBase64 !== undefined) {
-        dataToUpdate.imageUrl = imageBase64 || "";
+        if (imageBase64) {
+          toast.loading("Uploading new image...", { id: toastId });
+          const imageRef = ref(storage, `products/${shopOwnerId}/${id}`);
+          await uploadString(imageRef, imageBase64, 'data_url');
+          dataToUpdate.imageUrl = await getDownloadURL(imageRef);
+        } else {
+          dataToUpdate.imageUrl = "";
+        }
       }
       await updateDoc(doc(db, `users/${shopOwnerId}/products`, id), dataToUpdate);
       const updatedProductList = products.map(p => p.id === id ? { ...p, ...dataToUpdate } : p);
@@ -126,14 +142,19 @@ function MainApp() {
   
   const handleDeleteProduct = useCallback(async (productId) => {
     if (!shopOwnerId) return;
+    const productToDelete = products.find(p => p.id === productId);
     try {
+      if (productToDelete && productToDelete.imageUrl) {
+        const imageRef = ref(storage, productToDelete.imageUrl);
+        await deleteObject(imageRef).catch(err => console.log("Image might already be deleted:", err));
+      }
       await deleteDoc(doc(db, `users/${shopOwnerId}/products`, productId));
       setProducts(prev => prev.filter(p => p.id !== productId));
       toast.success("Product deleted successfully!");
     } catch (error) {
       toast.error("Failed to delete product.");
     }
-  }, [shopOwnerId]);
+  }, [shopOwnerId, products]);
 
   const handleAddCustomer = useCallback(async (customerToAdd) => { if (!shopOwnerId) return; try { const docRef = await addDoc(collection(db, `users/${shopOwnerId}/customers`), customerToAdd); setCustomers(prev => [...prev, { id: docRef.id, ...customerToAdd }]); toast.success("Customer added successfully!"); } catch (error) { toast.error("Failed to add customer."); } }, [shopOwnerId]);
   const handleUpdateCustomer = useCallback(async (updatedCustomer) => { if (!shopOwnerId) return; const { id, ...customerData } = updatedCustomer; try { await updateDoc(doc(db, `users/${shopOwnerId}/customers`, id), customerData); setCustomers(prev => prev.map(c => c.id === id ? updatedCustomer : c)); toast.success("Customer updated successfully!"); } catch (error) { toast.error("Failed to update customer."); } }, [shopOwnerId]);
@@ -156,7 +177,7 @@ function MainApp() {
         {activeTab === 'pos' && <POS products={products} customers={customers} onProcessSale={handleProcessSale} cart={cart} setCart={setCart} shopName={shopName} shopAddress={shopAddress} shopPhone={shopPhone} shopLogo={shopLogo} />}
         {activeTab === 'inventory' && <Inventory products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} />}
         {activeTab === 'customers' && userRole === 'admin' && <Customers customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onReceivePayment={handleReceivePayment} />}
-        {activeTab === 'sales report' && userRole === 'admin' && <SalesReport salesHistory={salesHistory} onDeleteSale={handleDeleteSale} onDeleteFilteredSales={handleDeleteFilteredSales} shopName={shopName} shopAddress={shopAddress} shopPhone={shopPhone} shopLogo={shopLogo} />}
+        {activeTab === 'sales report' && userRole === 'admin' && <SalesReport products={products} customers={customers} salesHistory={salesHistory} onDeleteSale={handleDeleteSale} onDeleteFilteredSales={handleDeleteFilteredSales} shopName={shopName} shopAddress={shopAddress} shopPhone={shopPhone} shopLogo={shopLogo} />}
         {activeTab === 'settings' && userRole === 'admin' && 
             <Settings
               onClearData={handleClearAllData} allUsers={allUsers} onResetPassword={handleResetPassword} onToggleUserStatus={handleToggleUserStatus}
