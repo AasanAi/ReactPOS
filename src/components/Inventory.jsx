@@ -7,7 +7,6 @@ import * as XLSX from 'xlsx';
 
 function Inventory({ products, onAddProduct, onUpdateProduct, onDeleteProduct }) {
   const [newProduct, setNewProduct] = useState({ name: "", buyPrice: "", salePrice: "", quantity: "", barcode: "", imageUrl: "" });
-  const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [editingProduct, setEditingProduct] = useState(null);
@@ -26,20 +25,19 @@ function Inventory({ products, onAddProduct, onUpdateProduct, onDeleteProduct })
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB Limit
-        toast.error("Image file is too large! (Max 2MB)");
+      if (file.size > 500 * 1024) { // 500KB limit
+        toast.error("Image file is too large! (Max 500KB)");
         return;
       }
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImageFile(reader.result); // Base64 string for upload
-        setImagePreview(reader.result);
+        setImagePreview(reader.result); // Base64 string
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleFormSubmit = () => {
+  const handleFormSubmit = async () => {
     if (!newProduct.name || !newProduct.buyPrice || !newProduct.salePrice || !newProduct.quantity || !newProduct.barcode) {
       toast.error("All fields (except image) are required!");
       return;
@@ -54,13 +52,14 @@ function Inventory({ products, onAddProduct, onUpdateProduct, onDeleteProduct })
     };
     
     if (editingProduct) {
-      // Agar image change hui hai (ya pehli baar add hui hai) to imagePreview (Base64) bhejo
-      // Agar image remove hui hai, to null bhejo
-      // Agar kuch nahi hua, to undefined bhejo
       const imagePayload = imagePreview !== editingProduct.imageUrl ? (imagePreview || null) : undefined;
-      onUpdateProduct({ id, ...dataToSend }, imagePayload);
+      await onUpdateProduct({ id, ...dataToSend }, imagePayload);
     } else {
-      onAddProduct(dataToSend, imagePreview);
+      if (products.some((p) => p.barcode === newProduct.barcode)) {
+        toast.error("This barcode already exists!");
+        return;
+      }
+      await onAddProduct(dataToSend, imagePreview);
     }
     handleCancelEdit();
   };
@@ -70,13 +69,12 @@ function Inventory({ products, onAddProduct, onUpdateProduct, onDeleteProduct })
   const handleCancelEdit = () => {
     setNewProduct({ name: "", buyPrice: "", salePrice: "", quantity: "", barcode: "", imageUrl: "" });
     setEditingProduct(null);
-    setImageFile(null);
     setImagePreview("");
     if (fileInputRef.current) fileInputRef.current.value = null;
   };
   
   const handleDeleteClick = (productId) => {
-    if (window.confirm("Are you sure you want to delete this product? This action cannot be undone.")) {
+    if (window.confirm("Are you sure? This action cannot be undone.")) {
         onDeleteProduct(productId);
     }
   };
@@ -87,12 +85,7 @@ function Inventory({ products, onAddProduct, onUpdateProduct, onDeleteProduct })
       return;
     }
     const dataToExport = products.map(p => ({
-        Name: p.name,
-        'Buy Price': p.buyPrice,
-        'Sale Price': p.salePrice,
-        Quantity: p.quantity,
-        Barcode: p.barcode,
-        'Image URL': p.imageUrl || ''
+        Name: p.name, 'Buy Price': p.buyPrice, 'Sale Price': p.salePrice, Quantity: p.quantity, Barcode: p.barcode, 'Image URL': p.imageUrl || ''
     }));
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
@@ -115,33 +108,27 @@ function Inventory({ products, onAddProduct, onUpdateProduct, onDeleteProduct })
               return { name, buyPrice: parseFloat(buyPrice), salePrice: parseFloat(salePrice), quantity: parseInt(quantity), barcode };
           })
           .filter(p => p.name && !isNaN(p.buyPrice) && !isNaN(p.salePrice) && !isNaN(p.quantity) && p.barcode && !(products || []).some(prod => prod.barcode === p.barcode));
-        
         if (importedProducts.length === 0) {
           toast.error("No new products found in the file, or all barcodes already exist.");
           return;
         }
-        importedProducts.forEach(prod => onAddProduct(prod, null)); // Image null rahegi
+        importedProducts.forEach(prod => onAddProduct(prod, null));
         toast.success(`${importedProducts.length} products imported successfully!`);
       } catch (error) {
         toast.error("Failed to import CSV. Please check the file format.");
-        console.error("CSV Import Error:", error);
       }
     };
     reader.readAsText(file);
     if(e.target) e.target.value = null;
   };
   
-  const filteredProducts = (products || []).filter(product => 
-    (product.name && product.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (product.barcode && product.barcode.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredProducts = (products || []).filter(p => (p.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || (p.barcode?.toLowerCase() || '').includes(searchTerm.toLowerCase()));
 
   return (
     <div className="container mx-auto px-6 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg h-fit">
           <h3 className="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">{editingProduct ? 'Edit Product' : 'Add New Product'}</h3>
-          
           <div className="my-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Product Image</label>
             <div className="mt-1 flex items-center space-x-4">
@@ -155,7 +142,6 @@ function Inventory({ products, onAddProduct, onUpdateProduct, onDeleteProduct })
                 </div>
             </div>
           </div>
-
           <div className="space-y-4">
             <div><label htmlFor="pName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Product Name</label><input id="pName" type="text" value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" /></div>
             <div><label htmlFor="bPrice" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Buy Price (PKR)</label><input id="bPrice" type="number" value={newProduct.buyPrice} onChange={(e) => setNewProduct({ ...newProduct, buyPrice: e.target.value })} className="mt-1 w-full bg-white dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" /></div>
